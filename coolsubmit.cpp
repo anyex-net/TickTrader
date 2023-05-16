@@ -528,6 +528,13 @@ void CoolSubmit::contextMenuEvent(QContextMenuEvent* e)
 // 窗口双击事件
 void CoolSubmit::mouseDoubleClickEvent(QMouseEvent * event)
 {
+    if(curPriceR.contains(event->pos()) || BidPriceR.contains(event->pos())
+             || AskPriceR.contains(event->pos()))
+    {
+        qInfo() << "double click";
+        continueFlag = 0;
+        initByInstr();
+    }
 }
 
 // 修改订单
@@ -770,6 +777,129 @@ void CoolSubmit::keyPressEvent ( QKeyEvent * event )
     update();
 }
 
+void CoolSubmit::getOrderOffsetFlag(CThostFtdcInputOrderField *pInputOrder, TThostFtdcVolumeType &OpenQty, TThostFtdcVolumeType &CloseQty, TThostFtdcVolumeType &CloseTodayQty)
+{
+    OpenQty=0,CloseQty=0,CloseTodayQty=0;
+
+ /*   BCESFieldTypeQty SellQty, SellQtyFrozen, TodaySellQty, TodaySellQtyFrozen;
+    BCESFieldTypeQty BuyQty, BuyQtyFrozen, TodayBuyQty, TodayBuyQtyFrozen;
+    std::map<std::string, stBCESPosi>::iterator iterPosi;
+
+    // 多仓
+    if((iterPosi = mLongPosis.find(pInputOrder->InstrumentID)) == mLongPosis.end()){
+        stBCESPosi stPosi={0};
+        strcpy(stPosi.InvestorID,pInputOrder->InvestorID);
+        strcpy(stPosi.InstrumentID,pInputOrder->InstrumentID);
+        stPosi.BSFlag = BCESConstBSFlagBuy;
+        mLongPosis[std::string(stPosi.InstrumentID)]=stPosi;
+        iterPosi= mLongPosis.find(pInputOrder->InstrumentID);
+    }
+    BuyQty = iterPosi->second.Qty;
+    BuyQtyFrozen = iterPosi->second.QtyFrozen;
+    TodayBuyQty = iterPosi->second.TodayQty;
+    TodayBuyQtyFrozen = iterPosi->second.TodayQtyFrozen;
+
+    // 空仓
+    if ((iterPosi = mShortPosis.find(pInputOrder->InstrumentID)) == mShortPosis.end()) {
+        stBCESPosi stPosi = { 0 };
+        strcpy(stPosi.InvestorID, pInputOrder->InvestorID);
+        strcpy(stPosi.InstrumentID, pInputOrder->InstrumentID);
+        stPosi.BSFlag = BCESConstBSFlagSell;
+        mShortPosis[std::string(stPosi.InstrumentID)] = stPosi;
+        iterPosi = mShortPosis.find(pInputOrder->InstrumentID);
+    }
+    SellQty = iterPosi->second.Qty;
+    SellQtyFrozen = iterPosi->second.QtyFrozen;
+    TodaySellQty = iterPosi->second.TodayQty;
+    TodaySellQtyFrozen = iterPosi->second.TodayQtyFrozen;
+
+    if(pInputOrder->BSFlag==BCESConstBSFlagBuy){
+        // 买
+
+        if(!strcmp(pInputOrder->ExchangeID,BCESConstExchangeIDSHFE) || !strcmp(pInputOrder->ExchangeID,BCESConstExchangeIDINE)){
+            // 有平今指令
+
+            //平今仓
+            if(TodaySellQty>TodaySellQtyFrozen){
+                // 有今仓
+                if(pInputOrder->Qty>(TodaySellQty-TodaySellQtyFrozen)){
+                    CloseTodayQty=TodaySellQty-TodaySellQtyFrozen;
+                }else{
+                    CloseTodayQty=pInputOrder->Qty;
+                }
+            }
+
+            // 平昨仓
+            if(pInputOrder->Qty>CloseTodayQty){
+                // 算昨仓
+                if(SellQty-TodaySellQty>SellQtyFrozen-TodaySellQtyFrozen){
+                    // 有昨仓
+                    if(pInputOrder->Qty-CloseTodayQty>(SellQty-TodaySellQty)-(SellQtyFrozen-TodaySellQtyFrozen)){
+                        CloseQty=(SellQty-TodaySellQty)-(SellQtyFrozen-TodaySellQtyFrozen);
+                    }else{
+                        CloseQty=pInputOrder->Qty-CloseTodayQty;
+                    }
+                }
+            }
+        }else{
+            //无平今指令
+            if(SellQty>SellQtyFrozen){
+                // 有持仓
+                if((pInputOrder->Qty)>(SellQty-SellQtyFrozen)){
+                    CloseQty=SellQty-SellQtyFrozen;
+                }else{
+                    CloseQty=pInputOrder->Qty;
+                }
+            }
+        }
+
+        //剩余的量作开仓处理
+        if(pInputOrder->Qty>(CloseTodayQty+CloseQty))
+            OpenQty=pInputOrder->Qty-(CloseTodayQty+CloseQty);
+    }else{
+        // 卖
+        if(!strcmp(pInputOrder->ExchangeID,BCESConstExchangeIDSHFE) || !strcmp(pInputOrder->ExchangeID,BCESConstExchangeIDINE)){
+            // 有平今指令
+
+            //平今仓
+            if(TodayBuyQty>TodayBuyQtyFrozen){
+                // 有今仓
+                if(pInputOrder->Qty>(TodayBuyQty-TodayBuyQtyFrozen)){
+                    CloseTodayQty=TodayBuyQty-TodayBuyQtyFrozen;
+                }else{
+                    CloseTodayQty=pInputOrder->Qty;
+                }
+            }
+
+            // 平昨仓
+            if(pInputOrder->Qty>CloseTodayQty){
+                // 算昨仓
+                if(BuyQty-TodayBuyQty>BuyQtyFrozen-TodayBuyQtyFrozen){
+                    // 有昨仓
+                    if(pInputOrder->Qty-CloseTodayQty>(BuyQty-TodayBuyQty)-(BuyQtyFrozen-TodayBuyQtyFrozen)){
+                        CloseQty=(BuyQty-TodayBuyQty)-(BuyQtyFrozen-TodayBuyQtyFrozen);
+                    }else{
+                        CloseQty=pInputOrder->Qty-CloseTodayQty;
+                    }
+                }
+            }
+        }else{
+            //无平今指令
+            if(BuyQty>BuyQtyFrozen){
+                // 有持仓
+                if((pInputOrder->Qty)>(BuyQty-BuyQtyFrozen)){
+                    CloseQty=BuyQty-BuyQtyFrozen;
+                }else{
+                    CloseQty=pInputOrder->Qty;
+                }
+            }
+        }
+
+        //剩余的量作开仓处理
+        if(pInputOrder->Qty>(CloseTodayQty+CloseQty))
+            OpenQty=pInputOrder->Qty-(CloseTodayQty+CloseQty);
+    }*/
+}
 
 // 插入订单
 void CoolSubmit::insertOrder(char bos, double price, int fpoints, int qty)

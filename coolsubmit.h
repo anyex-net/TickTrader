@@ -78,6 +78,8 @@ public:
 	void insertLOrder(char bos, double price, int fpoints = 0, int qty = 0);
 	// 删所有买订单
 	void dropAll(char bos);
+
+    void getOrderOffsetFlag(CThostFtdcInputOrderField *pInputOrder, TThostFtdcVolumeType &OpenQty, TThostFtdcVolumeType &CloseQty, TThostFtdcVolumeType &CloseTodayQty);
 private:
 	// 一页总行数
 	int linNum;
