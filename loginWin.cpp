@@ -42,6 +42,8 @@ loginWin::loginWin(QWidget *parent, Qt::WindowFlags f)
     ui.statusBar->hide();
     ui.label_2->hide();
     connect(ui.btnLogin, SIGNAL(clicked()),this, SLOT(login_clicked()));
+
+    connect(this, SIGNAL(showProcess(int,bool)), this, SLOT(onShowProcess(int,bool)));
 }
 
 loginWin::~loginWin()
@@ -79,6 +81,8 @@ void loginWin::getUserInfos()
 
 void loginWin::login_clicked()
 {
+    ui.labelProcess->setText(QString::fromLocal8Bit("登录中..."));
+
     QString str = ui.lineEditUser->text();
     memcpy(userName, str.toStdString().c_str(), sizeof(userName));
     str = ui.lineEdit->text();
@@ -131,4 +135,76 @@ void loginWin::loginFailed(int code,  QString mess)
 void loginWin::logutSecced()
 {
     emit pushTradeToFrom(LOGOUT);
+}
+
+void loginWin::onShowProcess(int func, bool last)
+{
+    if(func == ShowProc_loginOk)
+    {
+        ui.labelProcess->setText(QString::fromLocal8Bit("查合约中（0）..."));
+        m_iProcessNum = 0;
+    }
+    else if(func == ShowProc_instrument)
+    {
+        if(last){
+            ui.labelProcess->setText(QString::fromLocal8Bit("查报单中（0）..."));
+            m_iProcessNum = 0;
+        }
+        else{
+            m_iProcessNum++;
+            ui.labelProcess->setText(QString::fromLocal8Bit("查合约中（")
+                    + QString::number(m_iProcessNum) + QString::fromLocal8Bit("）..."));
+        }
+    }
+    else if(func == ShowProc_order)
+    {
+        if(last){
+            ui.labelProcess->setText(QString::fromLocal8Bit("查成交中（0）..."));
+            m_iProcessNum = 0;
+        }
+        else{
+            m_iProcessNum++;
+            ui.labelProcess->setText(QString::fromLocal8Bit("查报单中（")
+                    + QString::number(m_iProcessNum) + QString::fromLocal8Bit("）..."));
+        }
+    }
+    else if(func == ShowProc_trade)
+    {
+        if(last){
+            ui.labelProcess->setText(QString::fromLocal8Bit("查持仓中（0）..."));
+            m_iProcessNum = 0;
+        }
+        else{
+            m_iProcessNum++;
+            ui.labelProcess->setText(QString::fromLocal8Bit("查成交中（")
+                    + QString::number(m_iProcessNum) + QString::fromLocal8Bit("）..."));
+        }
+    }
+    else if(func == ShowProc_position)
+    {
+        if(last){
+            ui.labelProcess->setText(QString::fromLocal8Bit("查资金中（0）..."));
+            m_iProcessNum = 0;
+        }
+        else{
+            m_iProcessNum++;
+            ui.labelProcess->setText(QString::fromLocal8Bit("查持仓中（")
+                    + QString::number(m_iProcessNum) + QString::fromLocal8Bit("）..."));
+        }
+    }
+    else if(func == ShowProc_account)
+    {
+        if(last){
+
+            hide();
+            g_tw->show();
+
+            m_iProcessNum = 0;
+        }
+        else{
+            m_iProcessNum++;
+            ui.labelProcess->setText(QString::fromLocal8Bit("查资金中（")
+                    + QString::number(m_iProcessNum) + QString::fromLocal8Bit("）..."));
+        }
+    }
 }

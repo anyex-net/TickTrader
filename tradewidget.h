@@ -10,6 +10,7 @@
 #include "loginWin.h"
 #include <QMutex>
 #include "notice.h"
+#include <QTimer>
 
 #define PRODUCT_VERSION 3
 
@@ -151,6 +152,7 @@ private:
     QLabel * msgLabel;
 
     QTimer m_timer;
+    QTimer m_timerFreshTips;
 public slots:
     void onTimerReqPos();
     void slot_showOrderWin(TThostFtdcInstrumentIDType m_strInstr);
@@ -197,6 +199,8 @@ public slots:
     void help();
     // 展示K线图
     void showCurve();
+
+    void onTimerClearTips();
 signals:
     // 订单删除了
     void orderDroped();

@@ -69,6 +69,8 @@ void CTradeSpiImp::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin, CT
         CThostFtdcQryInstrumentField reqInfo = {0};
         m_pTradeApi->ReqQryInstrument(&reqInfo, nRequestIDs);
     }
+    if(!loginW->isHidden())
+        emit loginW->showProcess(ShowProc_loginOk, true);
 }
 
 void CTradeSpiImp::OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
@@ -126,6 +128,7 @@ void CTradeSpiImp::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrder
         return;
     if(pRspInfo && pRspInfo->ErrorID)
     {
+        qInfo() << QString::fromLocal8Bit(pRspInfo->ErrorMsg);
         g_tw->orderMessageEmit(QString::fromLocal8Bit(pRspInfo->ErrorMsg));
     }
 }
@@ -159,6 +162,8 @@ void CTradeSpiImp::OnRspQryOrder(CThostFtdcOrderField *pOrder, CThostFtdcRspInfo
     }
 	if(bIsLast)
 		g_tw->orderEmit(this, pOrder, bIsLast);
+    if(!loginW->isHidden())
+        emit loginW->showProcess(ShowProc_order, bIsLast);
 }
 
 void CTradeSpiImp::OnRspQryTrade(CThostFtdcTradeField *pTrade, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
@@ -173,6 +178,8 @@ void CTradeSpiImp::OnRspQryTrade(CThostFtdcTradeField *pTrade, CThostFtdcRspInfo
     }
 	if(bIsLast)
 		g_tw->tradeEmit(this, pTrade, bIsLast);
+    if(!loginW->isHidden())
+        emit loginW->showProcess(ShowProc_trade, bIsLast);
 }
 
 void CTradeSpiImp::OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pInvestorPosition, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
@@ -185,6 +192,8 @@ void CTradeSpiImp::OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pIn
     }
 	if(bIsLast)
 		g_tw->posiEmit(this, pInvestorPosition, bIsLast);
+    if(!loginW->isHidden())
+        emit loginW->showProcess(ShowProc_position, bIsLast);
 }
 
 void CTradeSpiImp::OnRspQryTradingAccount(CThostFtdcTradingAccountField *pTradingAccount, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
@@ -197,6 +206,8 @@ void CTradeSpiImp::OnRspQryTradingAccount(CThostFtdcTradingAccountField *pTradin
     {
         g_tw->fundEmit(this, pTradingAccount);
     }
+    if(!loginW->isHidden())
+        emit loginW->showProcess(ShowProc_account, bIsLast);
 }
 
 void CTradeSpiImp::OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
@@ -211,12 +222,32 @@ void CTradeSpiImp::OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, CT
         ::memcpy(pIn, pInstrument, sizeof(CThostFtdcInstrumentField));
         QString ins = QString(pInstrument->InstrumentID);
         tempCons[ins] = pIn;
+
+        if(!loginW->isHidden())
+            emit loginW->showProcess(ShowProc_instrument, bIsLast);
     }
 
     if(bIsLast)
     {
         g_tw->instrEmit(this);
         loginW->loginSucceed();
+
+//        CThostFtdcSettlementInfoConfirmField sicf = { 0 };
+//        memcpy( sicf.BrokerID, loginW->m_users.BrokerID, sizeof( sicf.BrokerID ) );
+//        memcpy( sicf.InvestorID, loginW->userName, sizeof( sicf.InvestorID ) );
+//        strcpy( sicf.ConfirmDate, m_pTradeApi->GetTradingDay( ) );
+
+//        for( ; ; )
+//        {
+//            int iRequestID = CreateNewRequestID( );
+//            int iResult = m_pTradeApi->ReqSettlementInfoConfirm( &sicf, iRequestID );
+//            if(iResult == -2 || iResult == -3)
+//                QThread::msleep(100);
+//            else
+//                break;
+//        }
+
+//        QThread::msleep(1000);
 
         for( ; ;)
         {

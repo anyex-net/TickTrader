@@ -87,86 +87,7 @@ void OrderManage::paintBox(QPainter * p)
 	p->fillRect(QRect(0,0,width(),24),QColor(173,173,173));
 	//// 调价按钮
 	//upriceRect = QRect(5,5,2*TOPPIX,2*TOPPIX);
-	QLinearGradient linearGradient(5,5,5,2*TOPPIX+5);
-	//linearGradient.setColorAt(0,QColor(128, 128, 128));
-	//linearGradient.setColorAt(1,QColor(84, 84, 84));
-	//p->setBrush(QBrush(linearGradient));
-	//p->setPen(QColor(210, 210, 210));
-	//p->drawRoundedRect(upriceRect, 5, 5);
-	//p->fillRect(QRect(6,25,59,20), QColor(240, 240, 240));
-	QPainterPath upP;
-	//upP.moveTo(35,10);
-	//upP.lineTo(40,17);
-	//upP.lineTo(37,17);
-	//upP.lineTo(37,20);
-	//upP.lineTo(33,20);
-	//upP.lineTo(33,17);
-	//upP.lineTo(30,17);
-	//upP.lineTo(35,10);
-	//p->fillPath(upP,QColor(240, 240, 240));
-	QPainterPath dnP;
-	//dnP.moveTo(35,60);
-	//dnP.lineTo(40,53);
-	//dnP.lineTo(37,53);
-	//dnP.lineTo(37,50);
-	//dnP.lineTo(33,50);
-	//dnP.lineTo(33,53);
-	//dnP.lineTo(30,53);
-	//dnP.lineTo(35,60);
-	//p->fillPath(dnP,QColor(240, 240, 240));
-	//if(c_order)
-	//{
-	//	int scale = tw->getScale(QString(c_order->InstrumentID));
-	//	p->setPen(QColor(34, 34, 34));
-	//	p->drawText(QRect(6,25,59,20),Qt::AlignCenter, QString::number(c_order->Price+udNum,'f',scale));
-	//}
-	//
-	//// 修改按钮
-	//changeRect = QRect(70,5,2*TOPPIX,2*TOPPIX);
-	//linearGradient.setStart(70,5);
-	//linearGradient.setFinalStop(70,2*TOPPIX+5);
-	//linearGradient.setColorAt(0,QColor(123, 192, 96));
-	//linearGradient.setColorAt(1,QColor(97, 172, 67));
-	//p->setBrush(QBrush(linearGradient));
-	//p->setPen(QColor(210, 210, 210));
-	//p->drawRoundedRect(changeRect, 5, 5);
-	//p->setPen(QColor(240, 240, 240));
-	//p->drawText(changeRect,Qt::AlignCenter, QString::fromLocal8Bit("改价"));
-
-	// 单步up按钮
-	p->setPen(QColor(210, 210, 210));
-	upOneRect = QRect(70,2,50,20);
-	linearGradient.setStart(70,2);
-	linearGradient.setFinalStop(70,22);
-	linearGradient.setColorAt(0,QColor(51,114,159));
-	linearGradient.setColorAt(1,QColor(51,114,159));
-	p->setBrush(QBrush(linearGradient));
-	p->drawRoundedRect(upOneRect,2,2);
-	upP.moveTo(78,8);
-	upP.lineTo(83,15);
-	upP.lineTo(78,12);
-	upP.lineTo(73,15);
-	upP.lineTo(78,8);
-	p->fillPath(upP,QColor(240, 240, 240));
-	p->setPen(QColor(255,255,255));
-	p->drawText(QRect(80,2,40,20),Qt::AlignCenter, QString::fromLocal8Bit("Tick"));//调高
-	// 单步dn按钮
-	dnOneRect = QRect(122,2,50,20);
-	linearGradient.setStart(122,2);
-	linearGradient.setFinalStop(122,22);
-	linearGradient.setColorAt(0,QColor(142,33,34));
-	linearGradient.setColorAt(1,QColor(142,33,34));
-	p->setBrush(QBrush(linearGradient));
-	p->setPen(QColor(210, 210, 210));
-	p->drawRoundedRect(dnOneRect,2,2);
-	dnP.moveTo(130,15);
-	dnP.lineTo(135,8);
-	dnP.lineTo(130,12);
-	dnP.lineTo(125,8);
-	dnP.lineTo(130,15);
-	p->fillPath(dnP,QColor(240, 240, 240));
-	p->setPen(QColor(255,255,255));
-	p->drawText(QRect(132,2,40,20),Qt::AlignCenter, QString::fromLocal8Bit("Tick"));//调低
+    QLinearGradient linearGradient(5,5,5,2*TOPPIX+5);
 	// 撤消按钮
 	p->setPen(QColor(210, 210, 210));
 	cancelRect = QRect(2,2,55,20);
@@ -177,29 +98,7 @@ void OrderManage::paintBox(QPainter * p)
 	p->setBrush(QBrush(linearGradient));
 	p->drawRoundedRect(cancelRect,2,2);
 	p->setPen(QColor(255,255,255));
-	p->drawText(cancelRect,Qt::AlignCenter, QString::fromLocal8Bit("撤单"));
-	//p->setPen(QColor(34, 34, 34));
-	//QRect cRect = QRect(295,5,4*TOPPIX,2*TOPPIX);
-	//checkRect = QRect(300,TOPPIX-7,20,20);
-	//linearGradient.setStart(295,TOPPIX+5);
-	//linearGradient.setFinalStop(295,2*TOPPIX+5);
-	//linearGradient.setColorAt(0,QColor(210, 54, 54));
-	//linearGradient.setColorAt(1,QColor(178, 40, 40));
-	//p->setBrush(QColor(240,240,240));
-	//p->setPen(QColor(34, 34, 34));
-	//p->drawRect(checkRect);
-	//if(orderStatus)
-	//{
-	//	QPainterPath chP;
-	//	chP.moveTo(300,TOPPIX+3);
-	//	chP.lineTo(310,TOPPIX+13);
-	//	chP.lineTo(320,TOPPIX-7);
-	//	chP.lineTo(310,TOPPIX+6);
-	//	chP.lineTo(300,TOPPIX+3);
-	//	p->fillPath(chP,QColor(34, 34, 34));
-	//}
-	//p->setPen(QColor(0,0,0));
-	//p->drawText(QRect(325,5,3*TOPPIX,2*TOPPIX),Qt::AlignCenter, QString::fromLocal8Bit("只显示活跃订单"));
+    p->drawText(cancelRect,Qt::AlignCenter, QString::fromLocal8Bit("撤单"));
 }
 
 // 绘制按钮区域
@@ -470,14 +369,14 @@ void OrderManage::mouseReleaseEvent(QMouseEvent * event)
 	//{
 	//	udNum -= minMove;
 	//}
-    if(upOneRect.contains(event->pos()) && c_order) // 调高
-	{
-        updateOrder(c_order, c_order->LimitPrice+minMove);
-	}
-    if(dnOneRect.contains(event->pos()) && c_order) // 调低
-	{
-        updateOrder(c_order, c_order->LimitPrice-minMove);
-	}
+//    if(upOneRect.contains(event->pos()) && c_order) // 调高
+//	{
+//        updateOrder(c_order, c_order->LimitPrice+minMove);
+//	}
+//    if(dnOneRect.contains(event->pos()) && c_order) // 调低
+//	{
+//        updateOrder(c_order, c_order->LimitPrice-minMove);
+//	}
 	if(cancelRect.contains(event->pos()))
 	{
 		dropOrder(c_order);

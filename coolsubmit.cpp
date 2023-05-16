@@ -8,6 +8,7 @@
 #include "notice.h"
 #include "orderManage.h"
 #include <math.h>
+#include <QDebug>
 
 // 构建登录窗口
 extern loginWin * loginW;
@@ -89,23 +90,6 @@ CoolSubmit::CoolSubmit(QString Instr, CThostFtdcDepthMarketDataField * t, TradeW
     ractions = new QMenu(this);
     QAction *cancelAction = ractions->addAction(QString::fromLocal8Bit("撤单"));
     connect(cancelAction, SIGNAL(triggered(bool)), this, SLOT(rcancelAction()));
-    limitAction = ractions->addAction(QString::fromLocal8Bit("止损"));
-    connect(limitAction, SIGNAL(triggered(bool)), this, SLOT(rLimitStopAction()));
-    //QAction *marketAction1 = limitS->addAction(QString::fromLocal8Bit("+1 TICK"));
-    //connect(marketAction1, SIGNAL(triggered(bool)), this, SLOT(roneTickStop()));
-    //QAction *marketAction2 = limitS->addAction(QString::fromLocal8Bit("+2 TICK"));
-    //connect(marketAction2, SIGNAL(triggered(bool)), this, SLOT(rtwoTickStop()));
-    //QAction *marketAction3 = limitS->addAction(QString::fromLocal8Bit("+3 TICK"));
-    //connect(marketAction3, SIGNAL(triggered(bool)), this, SLOT(rthreeTickStop()));
-    trallingAction = ractions->addAction(QString::fromLocal8Bit("追踪止损"));
-    connect(trallingAction, SIGNAL(triggered(bool)), this, SLOT(rtrallingAction()));
-    trallingAction->setCheckable(true);
-    ocoAction = ractions->addAction(QString::fromLocal8Bit("OCO"));
-    connect(ocoAction, SIGNAL(triggered(bool)), this, SLOT(ocoTrallAction()));
-    ocoAction->setCheckable(true);
-    //QAction *osoAction = ractions->addAction(QString::fromLocal8Bit("OSO"));
-    //connect(osoAction, SIGNAL(triggered(bool)), this, SLOT(osoTrallAction()));
-    //osoAction->setCheckable(true);
 }
 
 // 切换合约
@@ -298,14 +282,14 @@ void CoolSubmit::mouseMoveEvent(QMouseEvent * event)
     {
         mouseStatus = SROLLBAR;
     }
-    if(submitSR.contains(moveWPixs, moveHPixs) && AskPriceR.contains(event->pos()) && tradeStatus == LIMIT)
-    {
-        tradeStatus = FLIMIT;
-    }
-    if(submitBR.contains(moveWPixs, moveHPixs) && BidPriceR.contains(event->pos()) && tradeStatus == LIMIT)
-    {
-        tradeStatus = FLIMIT;
-    }
+//    if(submitSR.contains(moveWPixs, moveHPixs) && AskPriceR.contains(event->pos()) && tradeStatus == LIMIT)
+//    {
+//        tradeStatus = FLIMIT;
+//    }
+//    if(submitBR.contains(moveWPixs, moveHPixs) && BidPriceR.contains(event->pos()) && tradeStatus == LIMIT)
+//    {
+//        tradeStatus = FLIMIT;
+//    }
     if(sBarR.contains(moveWPixs, moveHPixs))
     {
         int yH = event->y();
@@ -448,6 +432,7 @@ void CoolSubmit::mouseReleaseEvent(QMouseEvent * event)
 //		wheelSteps = maxWheelSteps-(yH-linPix)*abs(maxWheelSteps-minWheelSteps)/(height()-1*linPix);
     }
     setCursor(QCursor(Qt::ArrowCursor));
+    qInfo() << " tradeStatus " << tradeStatus << "mouseStatus " << mouseStatus;
     switch(tradeStatus)
     {
     case LIMIT:
@@ -498,7 +483,7 @@ void CoolSubmit::mouseReleaseEvent(QMouseEvent * event)
             break;
         }
         break;
-    case FLIMIT:
+ /*   case FLIMIT:
         {
             char b2s = THOST_FTDC_D_Buy;
             double fpoints = price2>price?price2-price:0;
@@ -519,67 +504,7 @@ void CoolSubmit::mouseReleaseEvent(QMouseEvent * event)
             insertLOrder(b2s, price, (int)fpoints);
             tradeStatus = LIMIT;
         }
-        break;
-    case OCOMODE:
-        {
-            if(submitBR.contains(moveWPixs, moveHPixs) && BidPriceR.contains(x, y))
-            {
-                checkOCO(cQuot->LastPrice, THOST_FTDC_D_Buy, price, price2);
-            }
-            if(submitSR.contains(moveWPixs, moveHPixs) && AskPriceR.contains(x, y))
-            {
-                checkOCO(cQuot->LastPrice, THOST_FTDC_D_Sell, price, price2);
-            }
-        }
-        break;
-    case ZZMODE:
-        {
-            if(submitBR.contains(moveWPixs, moveHPixs) && submitBR.contains(x, y) && price<price2+0.00001 && price>price2-0.00001 && posi.size() > 0)
-            {
-                for(int index = 0;index<posi.size(); index++)
-                {
-                    if(posi[index]->PosiDirection == THOST_FTDC_PD_Short)
-                    {
-                        if(pPloy)
-                        {
-                            if(pPloy->trailPriceu <=0.0001)
-                            {
-                                pPloy->trailPriceu = price;
-                                pPloy->trigFlag = false;
-                            }
-                            else
-                            {
-                                pPloy->points = price - pPloy->trailPriceu;
-                                initZZOrder(THOST_FTDC_D_Buy);
-                            }
-                        }
-                    }
-                }
-            }
-            if(submitSR.contains(moveWPixs, moveHPixs) && submitSR.contains(x, y) && price<price2+0.00001 && price>price2-0.00001 && posi.size() > 0)
-            {
-                for(int index = 0;index<posi.size(); index++)
-                {
-                    if(posi[index]->PosiDirection == THOST_FTDC_PD_Long)
-                    {
-                        if(pPloy)
-                        {
-                            if(pPloy->trailPriceu <=0.0001)
-                            {
-                                pPloy->trailPriceu = price;
-                                pPloy->trigFlag = false;
-                            }
-                            else
-                            {
-                                pPloy->points = pPloy->trailPriceu - price;
-                                initZZOrder(THOST_FTDC_D_Sell);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        break;
+        break;*/
     }
     moveWPixs = 0;
     moveHPixs = 0;
@@ -635,10 +560,20 @@ void CoolSubmit::updateOrder(char bos, double price, double price2)
                 int nRequestID = CreateNewRequestID();
                 CThostFtdcInputOrderActionField pCancelReq;
                 ::memset(&pCancelReq,0,sizeof(CThostFtdcInputOrderActionField));
+                strncpy(pCancelReq.BrokerID, loginW->m_users.BrokerID, sizeof(pCancelReq.BrokerID));
                 strncpy(pCancelReq.OrderRef,sOrder->OrderRef,sizeof(pCancelReq.OrderRef)); /* 订单号 */
                 strncpy(pCancelReq.InvestorID,sOrder->InvestorID,sizeof(pCancelReq.InvestorID)); /* 投资者号 */
                 strncpy(pCancelReq.InstrumentID,sOrder->InstrumentID,sizeof(pCancelReq.InstrumentID)); /* 合约号 */
                 strncpy(pCancelReq.ExchangeID,ci->ExchangeID,sizeof(pCancelReq.ExchangeID)); /* 交易所号 */
+
+
+                pCancelReq.RequestID = nRequestID;
+                pCancelReq.FrontID = sOrder->FrontID;
+                pCancelReq.SessionID = sOrder->SessionID;
+                memcpy( pCancelReq.OrderSysID, sOrder->OrderSysID, sizeof( pCancelReq.OrderSysID ) );
+
+                pCancelReq.ActionFlag = THOST_FTDC_AF_Delete;
+
                 ti->api->ReqOrderAction(&pCancelReq, nRequestID); // 撤销订单
             }
             if(QString(sOrder->OrderRef).startsWith("ZZZS"))
@@ -663,23 +598,38 @@ void CoolSubmit::updateOrder(char bos, double price, double price2)
 // 删除订单
 void CoolSubmit::dropOrder(char bos, double price)
 {
+    qInfo() << "chedan" << bos << price;
     CThostFtdcInstrumentField * ci = selectInstr->curInstr;
     if(!ci) return;
     TradeInfo & ti = tradeInfoLst[currentAccout];
     QMapIterator<QString, CThostFtdcOrderField *> i(ti.orderLst);
     while (i.hasNext()) {
         CThostFtdcOrderField * sOrder = ti.orderLst[i.next().key()];
+        qInfo() << sOrder->OrderStatus << sOrder->LimitPrice;
         if(sOrder && QString::fromLocal8Bit(sOrder->InstrumentID) == ci->InstrumentID && sOrder->LimitPrice-price<0.000005  && sOrder->LimitPrice-price>-0.000005 && sOrder->Direction == bos)
         {
             if(sOrder->OrderStatus == THOST_FTDC_OST_NoTradeQueueing || sOrder->OrderStatus == THOST_FTDC_OST_PartTradedQueueing) // 撤销订单
             {
+                qInfo() << "enter";
+
                 int nRequestID = CreateNewRequestID();
                 CThostFtdcInputOrderActionField pCancelReq;
                 ::memset(&pCancelReq,0,sizeof(CThostFtdcInputOrderActionField));
+                strncpy(pCancelReq.BrokerID, loginW->m_users.BrokerID, sizeof(pCancelReq.BrokerID));
                 strncpy(pCancelReq.OrderRef,sOrder->OrderRef,sizeof(pCancelReq.OrderRef)); /* 订单号 */
                 strncpy(pCancelReq.InvestorID,sOrder->InvestorID,sizeof(pCancelReq.InvestorID)); /* 投资者号 */
                 strncpy(pCancelReq.InstrumentID,sOrder->InstrumentID,sizeof(pCancelReq.InstrumentID)); /* 合约号 */
                 strncpy(pCancelReq.ExchangeID,ci->ExchangeID,sizeof(pCancelReq.ExchangeID)); /* 交易所号 */
+
+                pCancelReq.RequestID = nRequestID;
+                pCancelReq.FrontID = sOrder->FrontID;
+                pCancelReq.SessionID = sOrder->SessionID;
+                memcpy( pCancelReq.OrderSysID, sOrder->OrderSysID, sizeof( pCancelReq.OrderSysID ) );
+
+                pCancelReq.ActionFlag = THOST_FTDC_AF_Delete;
+
+                qInfo() << "action333: " << pCancelReq.OrderRef;
+
                 ti.api->ReqOrderAction(&pCancelReq, nRequestID);
             }
             if(sOrder->OrderStatus == THOST_FTDC_OST_NotTouched) // 撤销止损单
@@ -720,10 +670,19 @@ void CoolSubmit::dropAll(char bos)
                 int nRequestID = CreateNewRequestID();
                 CThostFtdcInputOrderActionField pCancelReq;
                 ::memset(&pCancelReq,0,sizeof(CThostFtdcInputOrderActionField));
+                strncpy(pCancelReq.BrokerID, loginW->m_users.BrokerID, sizeof(pCancelReq.BrokerID));
                 strncpy(pCancelReq.OrderRef,sOrder->OrderRef,sizeof(pCancelReq.OrderRef)); /* 订单号 */
                 strncpy(pCancelReq.InvestorID,sOrder->InvestorID,sizeof(pCancelReq.InvestorID)); /* 投资者号 */
                 strncpy(pCancelReq.InstrumentID,sOrder->InstrumentID,sizeof(pCancelReq.InstrumentID)); /* 合约号 */
                 strncpy(pCancelReq.ExchangeID,ci->ExchangeID,sizeof(pCancelReq.ExchangeID)); /* 交易所号 */
+
+                pCancelReq.RequestID = nRequestID;
+                pCancelReq.FrontID = sOrder->FrontID;
+                pCancelReq.SessionID = sOrder->SessionID;
+                memcpy( pCancelReq.OrderSysID, sOrder->OrderSysID, sizeof( pCancelReq.OrderSysID ) );
+
+                pCancelReq.ActionFlag = THOST_FTDC_AF_Delete;
+
                 ti.api->ReqOrderAction(&pCancelReq, nRequestID);
             }
             if(sOrder->OrderStatus == THOST_FTDC_OST_NotTouched) // 撤销止损单
@@ -851,14 +810,16 @@ void CoolSubmit::insertOrder(char bos, double price, int fpoints, int qty)
     pInputOrder.Direction = bos; /* 买卖标志 */
     pInputOrder.LimitPrice = price;	/* 价格 */
     pInputOrder.VolumeTotalOriginal = qty;	/* 数量 */
+    pInputOrder.CombOffsetFlag[0] = THOST_FTDC_OF_Open; /* 开平标志 开 */
     pInputOrder.CombHedgeFlag[0] = THOST_FTDC_BHF_Speculation;
-    pInputOrder.TimeCondition = THOST_FTDC_TC_IOC;
+    pInputOrder.TimeCondition = THOST_FTDC_TC_GFD;
     pInputOrder.VolumeCondition = THOST_FTDC_VC_AV;
     pInputOrder.MinVolume = 1;
     pInputOrder.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
     int oId = CreateVirtualOrderId();
     pInputOrder.OrderPriceType = THOST_FTDC_OPT_LimitPrice;   /* 限价 */
     pInputOrder.ContingentCondition = THOST_FTDC_CC_Immediately;	/* 限价单模式 */
+    qInfo() << "333" << nRequestID;
     if(ti.api->ReqOrderInsert(&pInputOrder, nRequestID) == 0);
 }
 
@@ -943,261 +904,6 @@ void CoolSubmit::rcancelAction()
     else
     {
         dropOrder(THOST_FTDC_D_Buy, price);
-    }
-}
-
-// 限价止损
-void CoolSubmit::rLimitStopAction()
-{
-    CThostFtdcInstrumentField * ci = selectInstr->curInstr;
-    if(!ci) return;
-    double price =(wheelSteps + linNum/2-curposy/linPix+1)*minMove;
-    CThostFtdcDepthMarketDataField * cQuot = tw->quotMap[QString::fromLocal8Bit(ci->InstrumentID)];
-    if(!cQuot) return;
-    if(cQuot == NULL)
-    {
-        //QMessageBox::about(NULL,QString::fromLocal8Bit("提示"),QString::fromLocal8Bit("暂且行情！"));
-        Notice nt(Notice::NOTICE_TYPE_NOTIFICATION, QString::fromLocal8Bit("暂且行情！"), false, QString::fromLocal8Bit("提示"), NULL, 0);
-        nt.exec();
-        return;
-    }
-    if(cQuot->LastPrice > price)
-        methodFlag = THOST_FTDC_CC_LastPriceLesserEqualStopPrice;
-    else
-        methodFlag = THOST_FTDC_CC_LastPriceGreaterEqualStopPrice;
-    if(submitSR.contains(QPoint(curposx,curposy))) // 止损
-    {
-        insertLOrder(THOST_FTDC_D_Sell, price, cview->pi.fPoints);
-    }
-    if(submitBR.contains(QPoint(curposx,curposy))) // 止损
-    {
-        insertLOrder(THOST_FTDC_D_Buy, price, cview->pi.fPoints);
-    }
-}
-
-//OCO curp 当前价 bos 买卖方向 p1 触发条件 p2 报入价格
-void CoolSubmit::checkOCO(double curp, char bos, double p1, double p2)
-{
-    if(price1 < 0.0001)
-    {
-        price1 = p1;
-        price2 = p2;
-        bos1 = bos;
-        if(p1 >= curp)
-        {
-            meFlag1 = THOST_FTDC_CC_LastPriceGreaterEqualStopPrice;
-        }
-        else
-        {
-            meFlag1 = THOST_FTDC_CC_LastPriceLesserEqualStopPrice;
-        }
-    }
-    else if(price3 < 0.0001)
-    {
-        price3 = p1;
-        price4 = p2;
-        bos2 = bos;
-        if(p1 >= curp)
-        {
-            meFlag2 = THOST_FTDC_CC_LastPriceGreaterEqualStopPrice;
-        }
-        else
-        {
-            meFlag2 = THOST_FTDC_CC_LastPriceLesserEqualStopPrice;
-        }
-        initOcoOrder();
-    }
-}
-
-// 建立OCO订单
-void CoolSubmit::initOcoOrder()
-{
-    CThostFtdcInstrumentField * ci = selectInstr->curInstr;
-    if(!ci) return;
-    if(minMove < 0.0001)
-        return;
-    TradeInfo & ti = tradeInfoLst[currentAccout];
-    int nRequestID = CreateNewRequestID();
-    QString ocoOid = "OCO_";
-    ocoOid.append(QString::number(nRequestID));
-    QString ocoOid1 = ocoOid.append("_");
-    QString ocoOid2 = ocoOid.append("_");;
-    // 构建虚拟本地订单1
-    CThostFtdcOrderField pOrder1;
-    ::memset(&pOrder1,0,sizeof(CThostFtdcOrderField));
-    strncpy(pOrder1.InvestorID, ti.accountName.toLatin1().data(),sizeof(pOrder1.InvestorID));
-    strncpy(pOrder1.OrderRef, ocoOid1.toLatin1().data(),sizeof(pOrder1.OrderRef));
-    strncpy(pOrder1.InstrumentID, ci->InstrumentID,sizeof(pOrder1.InstrumentID));
-    pOrder1.Direction = bos1; // 买卖标志
-    pOrder1.CombOffsetFlag[0] = THOST_FTDC_OF_Open; // 开平标志
-    pOrder1.LimitPrice = price1; // 价格
-    pOrder1.VolumeTotalOriginal = numL->text().toInt(); // 数量
-    pOrder1.VolumeTotal = pOrder1.VolumeTotalOriginal; // 剩余数量
-    pOrder1.ContingentCondition = meFlag1; // 条件方法
-    pOrder1.OrderPriceType = THOST_FTDC_OPT_LimitPrice; // 价格类型
-//	pOrder1.FilledPoints = abs(price2-price1)/minMove + 0.000001;
-    strncpy(pOrder1.OrderRef,pOrder1.OrderRef,sizeof(pOrder1.OrderRef));
-    strncpy(pOrder1.ExchangeID, ci->ExchangeID,sizeof(pOrder1.ExchangeID));// 交易所号
-    pOrder1.OrderStatus = THOST_FTDC_OST_NotTouched;  // 未触发
-//	strncpy(pOrder1.DetailStatus,"OCO",sizeof(pOrder1.DetailStatus));
-    tw->orderEmit(ti.spi, &pOrder1);
-    // 构建虚拟本地订单2
-    CThostFtdcOrderField pOrder2;
-    ::memset(&pOrder2,0,sizeof(CThostFtdcOrderField));
-    strncpy(pOrder2.InvestorID, ti.accountName.toLatin1().data(),sizeof(pOrder2.InvestorID));
-    strncpy(pOrder2.OrderRef, ocoOid2.toLatin1().data(),sizeof(pOrder2.OrderRef));
-    strncpy(pOrder2.InstrumentID, ci->InstrumentID,sizeof(pOrder2.InstrumentID));
-    pOrder2.Direction = bos2; // 买卖标志
-    pOrder2.CombOffsetFlag[0] = THOST_FTDC_OF_Open; // 开平标志
-    pOrder2.LimitPrice = price3; // 价格
-    pOrder2.VolumeTotalOriginal = numL->text().toInt(); // 数量
-    pOrder2.VolumeTotal = pOrder2.VolumeTotalOriginal; // 剩余数量
-    pOrder2.ContingentCondition = meFlag2; // 条件方法
-    pOrder2.OrderPriceType = THOST_FTDC_OPT_LimitPrice; // 价格类型
-//	pOrder2.FilledPoints = abs(price4-price3)/minMove + 0.000001;
-    strncpy(pOrder2.OrderRef,pOrder2.OrderRef,sizeof(pOrder2.OrderRef));
-    strncpy(pOrder2.ExchangeID, ci->ExchangeID,sizeof(pOrder2.ExchangeID));// 交易所号
-    pOrder2.OrderStatus = THOST_FTDC_OST_NotTouched;  // 未触发
-//	strncpy(pOrder2.DetailStatus,"OCO",sizeof(pOrder2.DetailStatus));
-    tw->orderEmit(ti.spi, &pOrder2);
-    OCOGROUP ogp;
-    strncpy(ogp.OrderID1, pOrder1.OrderRef,sizeof(ogp.OrderID1));
-    strncpy(ogp.OrderID2, pOrder2.OrderRef,sizeof(ogp.OrderID2));
-    tw->ocoList.append(ogp);
-    // todo 建立OCO订单
-    price1 = 0;
-    price2 = 0;
-    price3 = 0;
-    price4 = 0;
-    bool ocoC = ocoAction->isChecked();
-    ocoAction->setChecked(!ocoC);
-    tradeStatus = LIMIT;
-}
-
-// 建立追踪止损单
-void CoolSubmit::initZZOrder(TThostFtdcDirectionType bs)
-{
-/*	TradeInfo & tf = tradeInfoLst[currentAccout];
-    CThostFtdcInstrumentField * sI = selectInstr->curInstr;
-    if(!sI) return;
-    QMap<QString,PosiPloy *>::const_iterator iter = tf.posiLst.find(QString::fromLocal8Bit(sI->InstrumentID));
-    PosiPloy * pploy = iter != tf.posiLst.end() ? iter.value():NULL;
-    if(!pploy) return;
-    CThostFtdcInvestorPositionField * posi = pploy->posi;
-    CThostFtdcDepthMarketDataField * cQuot = tw->quotMap[QString::fromLocal8Bit(sI->InstrumentID)];
-    if(!posi) return;
-    int sbStatus = 0; // 追踪买卖状态
-    if(posi->BuyQty > posi->SellQty && bs == THOST_FTDC_D_Sell)
-    {
-        sbStatus = 1; //追损买仓
-    }
-    if(posi->BuyQty < posi->SellQty && bs == THOST_FTDC_D_Buy)
-    {
-        sbStatus = 2;//追损卖仓
-    }
-    if(sbStatus)
-    {
-        CThostFtdcOrderField * trallOrder = new CThostFtdcOrderField;
-        ::memset(trallOrder,0,sizeof(CThostFtdcOrderField));
-//		strncpy(trallOrder->InvestorID, tf.fund->InvestorID,sizeof(trallOrder->InvestorID));
-        int oId = CreateVirtualOrderId();
-        snprintf(trallOrder->OrderRef,sizeof(trallOrder->OrderRef), "ZZZS.%d", oId);
-        strncpy(trallOrder->InstrumentID, cQuot->InstrumentID,sizeof(trallOrder->InstrumentID));
-        trallOrder->Direction = bs; // 买卖标志
-        trallOrder->CombOffsetFlag[0] = THOST_FTDC_OF_Close; // 开平标志
-        trallOrder->OrderPriceType = THOST_FTDC_OPT_AnyPrice; // 价格类型
-        strncpy(trallOrder->ExchangeID, sI->ExchangeID,sizeof(trallOrder->ExchangeID));// 交易所号
-        trallOrder->VolumeTotalOriginal = numL->text().toInt(); // 数量
-        trallOrder->OrderStatus = THOST_FTDC_OST_NotTouched;  // 未触发
-        if(sbStatus == 1)
-        {
-            trallOrder->LimitPrice = pploy->trailPriceu-pploy->points; // 价格
-            trallOrder->ContingentCondition = THOST_FTDC_CC_BidPriceLesserEqualStopPrice; // 条件方法
-        }
-        if(sbStatus == 2)
-        {
-            trallOrder->LimitPrice = pploy->trailPriceu+pploy->points; // 价格
-            trallOrder->ContingentCondition = THOST_FTDC_CC_AskPriceGreaterEqualStopPrice; // 条件方法
-        }
-    //	strncpy(trallOrder->DetailStatus,"追踪止损单",sizeof(trallOrder->DetailStatus));
-        tw->addOrder(tf.spi, trallOrder);
-        messageInfo = QString::fromLocal8Bit("追踪价位：");
-        messageInfo.append(QString::number(trallOrder->LimitPrice, 'f', pScale));
-        bool trall = trallingAction->isChecked();
-        trallingAction->setChecked(!trall);
-        tradeStatus = LIMIT;
-    }*/
-}
-
-//OCO
-void CoolSubmit::ocoTrallAction()
-{
-    if(!ocoAction->isChecked())
-    {
-        tradeStatus = LIMIT;
-        price1 = 0;
-        price2 = 0;
-        price3 = 0;
-        price4 = 0;
-    }
-    else
-    {
-        tradeStatus = OCOMODE;
-        moveHPixs = 0;
-        moveWPixs = 0;
-    }
-}
-
-//OSO
-void CoolSubmit::osoTrallAction()
-{
-}
-
-// 追踪止损
-void CoolSubmit::rtrallingAction()
-{
-    double price = (wheelSteps + linNum/2-curposy/linPix+1)*minMove;
-    TradeInfo & tf = tradeInfoLst[currentAccout];
-    if(!selectInstr->curInstr)
-    {
-        mouseStatus = NORMAL;
-        trallingAction->setChecked(false);
-        return;
-    }
-    QMap<QString,PosiPloy *>::const_iterator iter = tf.posiLst.find(QString::fromLocal8Bit(selectInstr->curInstr->InstrumentID));
-    PosiPloy * pploy = iter != tf.posiLst.end() ? iter.value():NULL;
-    QList<CThostFtdcInvestorPositionField *> posi;
-    if(pploy)
-        posi = pploy->posi;
-    CThostFtdcDepthMarketDataField * cQuot = tw->quotMap[QString::fromLocal8Bit(selectInstr->curInstr->InstrumentID)];
-    CThostFtdcInstrumentField * sInstr = tw->insMap[QString::fromLocal8Bit(selectInstr->curInstr->InstrumentID)];
-    if(cQuot == NULL || sInstr == NULL)
-    {
-        //QMessageBox::about(NULL,QString::fromLocal8Bit("提示"),QString::fromLocal8Bit("暂且行情！"));
-        Notice nt(Notice::NOTICE_TYPE_NOTIFICATION, QString::fromLocal8Bit("暂且行情！"), false, QString::fromLocal8Bit("提示"), NULL, 0);
-        nt.exec();
-        mouseStatus = NORMAL;
-        trallingAction->setChecked(false);
-        return;
-    }
-    if(posi.size() == 0)
-    {
-        //QMessageBox::about(NULL,QString::fromLocal8Bit("提示"),QString::fromLocal8Bit("持仓为空！"));
-        Notice nt(Notice::NOTICE_TYPE_NOTIFICATION, QString::fromLocal8Bit("持仓为空！"), false, QString::fromLocal8Bit("提示"), NULL, 0);
-        nt.exec();
-        mouseStatus = NORMAL;
-        trallingAction->setChecked(false);
-        return;
-    }
-    if(!trallingAction->isChecked())
-    {
-        tradeStatus = LIMIT;
-    }
-    else
-    {
-        tradeStatus = ZZMODE;
-        moveHPixs = 0;
-        moveWPixs = 0;
     }
 }
 
@@ -1303,8 +1009,8 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
     QString vnames[6] = {QString::fromLocal8Bit(ci->InstrumentID).append(",").append(QString::fromLocal8Bit(ci->InstrumentName))
         ,"0","0","0",QString::number(tf.fund->Available,'f',pScale),currentAccout};
 
-    double BuyPrice = sPosiBuy.PositionCost/(sPosiBuy.Position*1.00f)/(ci->VolumeMultiple*1.00f);
-    double SellPrice = sPosiSell.PositionCost/(sPosiSell.Position*1.00f)/(ci->VolumeMultiple*1.00f);
+    double BuyPrice = sPosiBuy.Position == 0 ? 0.00:sPosiBuy.PositionCost/(sPosiBuy.Position*1.00f)/(ci->VolumeMultiple*1.00f);
+    double SellPrice = sPosiSell.Position == 0 ? 0.00:sPosiSell.PositionCost/(sPosiSell.Position*1.00f)/(ci->VolumeMultiple*1.00f);
     if(sPosiSell.Position == 0)
     {
         qty = sPosiBuy.Position;
@@ -2057,7 +1763,7 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
         painter.fillPath(jt,QColor(0, 0, 0));
     }
     // 绘制追踪止损线
-    if(pploy && pploy->posi.size() > 0 && pploy->trailPriceu > 0.0001)
+ /*   if(pploy && pploy->posi.size() > 0 && pploy->trailPriceu > 0.0001)
     {
         double steps = ( - pploy->trailPriceu)/minMove;
         int oLin  = 0;
@@ -2107,7 +1813,7 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
             }
         }
         else*/
-        {
+      /*  {
             px = submitSR.x() + orderW*oPix[4]/200;
             py = oLin*linPix+1+linPix/2;
             if(tradeStatus == ZZMODE)
@@ -2135,5 +1841,5 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
         jt.lineTo(px2,py2);
         jt.lineTo(px0,py0);
         painter.fillPath(jt,QColor(0, 0, 0));
-    }
+    }*/
 }

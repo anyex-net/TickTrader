@@ -29,7 +29,9 @@ SOURCES += \
     posiManage.cpp \
     tradewidget.cpp \
     tradespiimp.cpp \
-    mdspiimp.cpp
+    mdspiimp.cpp \
+    widgetordermanager.cpp \
+    widgettrademanager.cpp
 
 HEADERS += \
     InstrManage.h \
@@ -51,14 +53,18 @@ HEADERS += \
     tradespiimp.h \
     interfaceCTP/ThostFtdcMdApi.h \
     mdspiimp.h \
-    appapi.h
+    appapi.h \
+    widgetordermanager.h \
+    widgettrademanager.h
 
 FORMS += \
     changePassword.ui \
     configWidget.ui \
     help.ui \
     loginWin.ui \
-    tradewidget.ui
+    tradewidget.ui \
+    widgetordermanager.ui \
+    widgettrademanager.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

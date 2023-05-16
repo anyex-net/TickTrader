@@ -147,6 +147,9 @@ QString convertOcFlag(TThostFtdcOffsetFlagType flag)
     case THOST_FTDC_OF_CloseToday:
         str = QString::fromLocal8Bit("平今");
         break;
+    case THOST_FTDC_OF_CloseYesterday:
+        str = QString::fromLocal8Bit("平昨");
+        break;
     case THOST_FTDC_OF_ForceClose:
         str = QString::fromLocal8Bit("强平");
         break;
@@ -266,6 +269,7 @@ TradeWidget::TradeWidget(QWidget *parent, Qt::WindowFlags flags)
     setGeometry(DW/2-160,DH/2-250,320,500);
 
     connect(&m_timer, SIGNAL(timeout()), this, SLOT(onTimerReqPos()));
+    connect(&m_timerFreshTips, SIGNAL(timeout()), this, SLOT(onTimerClearTips()));
 }
 
 void TradeWidget::closeEvent (QCloseEvent * event)
@@ -281,17 +285,21 @@ void TradeWidget::closeEvent (QCloseEvent * event)
 
 void TradeWidget::doCancelOrder(CThostFtdcInputOrderActionField *pOrderCancelRsp)
 {
+    qInfo() << "111" << pOrderCancelRsp->OrderRef;
     for(int i=0;i<o2upLst.length();i++)
     {
         NEWORDERINF & iti = o2upLst[i];
         if(::strcmp(pOrderCancelRsp->OrderRef, iti.OrderRef) == 0)
         {
+            qInfo() << "1110" << iti.OrderRef;
             int nRequestID = CreateNewRequestID();
             CThostFtdcInputOrderField pInputOrder;
             ::memset(&pInputOrder,0,sizeof(CThostFtdcInputOrderField));
             strncpy(pInputOrder.BrokerID, loginW->m_users.BrokerID, sizeof(pInputOrder.BrokerID));
             strncpy(pInputOrder.InvestorID,iti.InvestorID, sizeof(pInputOrder.InvestorID)); /* 投资者号 */
             strncpy(pInputOrder.InstrumentID, iti.InstrumentID, sizeof(pInputOrder.InstrumentID));
+            strncpy(pInputOrder.ExchangeID, iti.ExchangeID, sizeof(pInputOrder.ExchangeID));
+            sprintf(pInputOrder.OrderRef, "%12i", nRequestID);
             pInputOrder.Direction = iti.Direction; /* 买卖标志 */
             pInputOrder.CombOffsetFlag[0] = iti.CombOffsetFlag[0]; /* 开平标志 */
             pInputOrder.CombHedgeFlag[0] = THOST_FTDC_BHF_Speculation; /* 投机套保标志 */
@@ -301,9 +309,8 @@ void TradeWidget::doCancelOrder(CThostFtdcInputOrderActionField *pOrderCancelRsp
             pInputOrder.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
             pInputOrder.OrderPriceType = iti.PriceType;	/* 价格类型 */
             pInputOrder.LimitPrice = iti.Price;	/* 价格 */
-            pInputOrder.TimeCondition = iti.ConditionMethod;	/* 条件方法 */
             pInputOrder.VolumeTotalOriginal = iti.Qty;	/* 数量 */
-            strncpy(pInputOrder.ExchangeID, iti.ExchangeID, sizeof(pInputOrder.ExchangeID));
+            pInputOrder.ContingentCondition = THOST_FTDC_CC_Immediately;	/* 限价单模式 */
             tradeInfoLst[iti.tif].api->ReqOrderInsert(&pInputOrder, nRequestID); // 录入订单
             o2upLst.removeAt(i);
             break;
@@ -323,8 +330,8 @@ void TradeWidget::checkCancelOrder(CThostFtdcInputOrderActionField *pOrderCancel
 
 void TradeWidget::tradingAftorLogin()
 {
-    loginW->hide();
-    this->show();
+//    loginW->hide();
+//    this->show();
     UserInfo product;
     strncpy(product.name,loginW->userName,sizeof(product.name));
     strncpy(product.pass,loginW->password,sizeof(product.pass));
@@ -342,6 +349,7 @@ void TradeWidget::tradingAftorLogin()
     setCentralWidget(CSubmit);
     orderMessageEmit(loginW->userName + QString::fromLocal8Bit(" \r\n登录成功！"));
     loginStatusLbl->setText(QString::fromLocal8Bit("已登录"));
+    m_timerFreshTips.start(5000);
     a = clock();
 }
 
@@ -733,6 +741,7 @@ void TradeWidget::checkOrderStatus(CThostFtdcDepthMarketDataField * cQuot)
             {
                 pInputOrder.LimitPrice = cQuot->UpperLimitPrice;	/* 涨停价格 */
             }
+            qInfo() << "222";
             pInputOrder.OrderPriceType = iti->OrderPriceType;
             pInputOrder.TimeCondition = THOST_FTDC_TC_GFD;
             pInputOrder.VolumeCondition = THOST_FTDC_VC_AV;
@@ -741,7 +750,7 @@ void TradeWidget::checkOrderStatus(CThostFtdcDepthMarketDataField * cQuot)
 //            strcpy( pInputOrder.MacAddress, "fe80::75ef:97de:2366:e490" );
 //            strcpy( pInputOrder.IPAddress, "10.150.1.23" );
             iti->OrderStatus = THOST_FTDC_OST_Canceled;
-            tf.api->ReqOrderInsert(&pInputOrder, 0); // 录入订单
+//            tf.api->ReqOrderInsert(&pInputOrder, 0); // 录入订单
             orderEmit(tf.spi, iti);
             checkOcoStatus(tf,iti->OrderRef);
         }
@@ -803,8 +812,20 @@ void TradeWidget::addInstr(CTradeSpiImp * t)
 // 添加订单记录
 void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool bLast)
 {
+    if(order)
+    {
+        QString msg = QString::fromLocal8Bit("下单: ") + QString::fromLocal8Bit(order->InstrumentID)
+                + QString(" ") + convertBsFlag(order->Direction) + convertOcFlag(order->CombOffsetFlag[0])
+                + QString(" ") + QString::number(order->LimitPrice)
+                + QString(" ") + QString::number(order->VolumeTotalOriginal)
+                + QString(" ") + convertOrderStatus(order->OrderStatus)
+                + QString(" ") + QString::fromLocal8Bit(order->StatusMsg);
+        loginStatusLbl->setText(msg);
+        m_timerFreshTips.start(5000);
+    }
     if(bLast)
     {
+        loginStatusLbl->clear();
         for( ; ; )
         {
             QThread::msleep(1000);
@@ -1096,6 +1117,15 @@ void TradeWidget::errManage(int code, QString mess)
 void TradeWidget::initTradeWin()
 {
     ui.setupUi(this);
+
+    ui.toolBar->hide();
+    ui.menu_file->removeAction(ui.actionOrder);
+    ui.menu_file->removeAction(ui.actionCM);
+    ui.menu_file->removeAction(ui.priceAction);
+    ui.menu_file->removeAction(ui.actionK);
+    ui.menu->removeAction(ui.configAction);
+    ui.menu->removeAction(ui.passwordAction);
+
     // 退出程序
     connect(ui.actionlogOut, SIGNAL(triggered(bool)), this, SLOT(close()), Qt::QueuedConnection);
     // 订单管理
@@ -1177,21 +1207,28 @@ void TradeWidget::messageSrv(QString mes)
     //	mes = mes.insert(lins,"\r\n");
     //	lins += 13;
     //}
-    QWidget * messWin = new QWidget();
-    messWin->setWindowFlags(Qt::Popup);
-    messWin->setWindowFlags(Qt::FramelessWindowHint);
-    messWin->setAttribute(Qt::WA_TranslucentBackground);
-    QLabel * backL = new QLabel(messWin);
-    backL->setPixmap(QPixmap(":/image/images/notice.png"));
-    QLabel * mesL = new QLabel(messWin);
-    mesL->setText(mes);
-    const QRect wR = QApplication::desktop()->screenGeometry();
-    messWin->setGeometry(wR.right()-140,wR.bottom()-140,120,120);
-    mesL->setGeometry(0,0,messWin->width(),messWin->height()-20);
-    backL->setGeometry(0,0,messWin->width(),messWin->height());
-    mesL->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-    messWin->show();
-    QTimer::singleShot(3000, messWin, SLOT(close()));
+//    QWidget * messWin = new QWidget();
+//    messWin->setWindowFlags(Qt::Popup);
+//    messWin->setWindowFlags(Qt::FramelessWindowHint);
+//    messWin->setAttribute(Qt::WA_TranslucentBackground);
+//    QLabel * backL = new QLabel(messWin);
+//    backL->setPixmap(QPixmap(":/image/images/notice.png"));
+//    QLabel * mesL = new QLabel(messWin);
+//    mesL->setText(mes);
+//    const QRect wR = QApplication::desktop()->screenGeometry();
+//    messWin->setGeometry(wR.right()-140,wR.bottom()-140,120,120);
+//    mesL->setGeometry(0,0,messWin->width(),messWin->height()-20);
+//    backL->setGeometry(0,0,messWin->width(),messWin->height());
+//    mesL->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+//    messWin->show();
+//    QTimer::singleShot(3000, messWin, SLOT(close()));
+    loginStatusLbl->setText(mes);
+    m_timerFreshTips.start(5000);
+}
+
+void TradeWidget::onTimerClearTips()
+{
+    loginStatusLbl->clear();
 }
 
 void TradeWidget::orderManage()

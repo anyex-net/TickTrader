@@ -19,10 +19,10 @@ public:
 	//QRect changeRect;
 	//// 调价区域
 	//QRect upriceRect;
-	// 单步up区域
-	QRect upOneRect;
-	// 单步down区域
-	QRect dnOneRect;
+//	// 单步up区域
+//	QRect upOneRect;
+//	// 单步down区域
+//	QRect dnOneRect;
 	// 撤单区域
 	QRect cancelRect;
 	//// checkBox区域

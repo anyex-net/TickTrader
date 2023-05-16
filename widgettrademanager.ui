@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WidgetTrade</class>
+ <widget class="QWidget" name="WidgetTrade">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>589</width>
+    <height>330</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>成交单</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="tradewidget.qrc">
+    <normaloff>:/image/images/deal@32px.png</normaloff>:/image/images/deal@32px.png</iconset>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <item row="0" column="0">
+    <widget class="QTableView" name="tableViewTrade"/>
+   </item>
+  </layout>
+ </widget>
+ <resources>
+  <include location="tradewidget.qrc"/>
+ </resources>
+ <connections/>
+</ui>

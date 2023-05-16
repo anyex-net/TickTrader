@@ -49,6 +49,16 @@ struct PrivateIns
     char exePath[64];
 };
 
+enum enShowProc
+{
+    ShowProc_loginOk,
+    ShowProc_instrument,
+    ShowProc_order,
+    ShowProc_trade,
+    ShowProc_position,
+    ShowProc_account
+};
+
 class loginWin : public QWidget
 {
     Q_OBJECT
@@ -69,20 +79,24 @@ public:
     void loginFailed(int code, QString mess);
     void logutSecced();
 
-    // 登录用户信息答复
     CThostFtdcRspUserLoginField loginRes;
 
 private:
     Ui::loginWinClass ui;
+    int  m_iProcessNum = 0;
 
 public slots:
     void login_clicked();
+    void onShowProcess(int func, bool last);
 
 signals:
     void pushTrade();
     void errShow(int code, QString mess);
     void loginSec();
     void pushTradeToFrom(TRADE_SIGNAL);
+
+    void showProcess(int, bool);
+
 protected:
     void keyPressEvent ( QKeyEvent * event );
 };

@@ -51,9 +51,7 @@ public:
 	// 设置订单模式
 	// QComboBox * orderModeC; 
 	// 选择交易品种
-	InstrManage * selectInstr; 
-	// 右键菜单 - 止损限价
-	QAction *limitAction;
+    InstrManage * selectInstr;
 	// 连续输入标志 0 未输入 1输入中 2 搜合约
 	int continueFlag;
 	// 价格精度
@@ -141,11 +139,7 @@ private:
 	// 右侧盈亏区域；
 	QRect bsRect;
 	// 右键菜单
-	QMenu * ractions;
-	// 追踪止损
-	QAction *trallingAction;
-	// OCO
-	QAction *ocoAction;
+    QMenu * ractions;
 	// OCO price
 	double price1;
 	// OCO price
@@ -193,15 +187,7 @@ public slots:
 	// 超时处理
 	void onTimerOut();
 	// 撤单响应
-	void rcancelAction();
-	// 限价止损
-	void rLimitStopAction();
-	// 追踪止损
-	void rtrallingAction();
-	//OCO
-	void ocoTrallAction();
-	// oso
-	void osoTrallAction();
+    void rcancelAction();
 	// 切换合约
 	void initByInstr();
 };
