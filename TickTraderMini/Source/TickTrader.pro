@@ -7,7 +7,7 @@ CONFIG += c++17
 TARGET = TickTrader
 TEMPLATE = app
 
-DESTDIR = "../Out"
+win32:DESTDIR = "../OutWindows"
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -77,8 +77,8 @@ RESOURCES += \
 
 RC_FILE += version.rc
 
-unix|win32: LIBS += -L$$PWD/interfaceCTP/ -lthostmduserapi_se
-unix|win32: LIBS += -L$$PWD/interfaceCTP/ -lthosttraderapi_se
+win32: LIBS += -L$$PWD/interfaceCTP/ -lthostmduserapi_se
+win32: LIBS += -L$$PWD/interfaceCTP/ -lthosttraderapi_se
 
 INCLUDEPATH += $$PWD/interfaceCTP
 DEPENDPATH += $$PWD/interfaceCTP

@@ -109,8 +109,9 @@ void CTradeSpiImp::OnRtnOrder(CThostFtdcOrderField *pOrder)
 {
     if(pOrder)
     {
-        qInfo() << "OnRtnOrder: " << QString::fromLocal8Bit(pOrder->StatusMsg);
-        g_tw->orderEmit(this, pOrder);
+        qInfo() << "OnRtnOrder: " << pOrder->OrderRef << QString::fromLocal8Bit(pOrder->StatusMsg) << pOrder->OrderStatus
+                << pOrder->OrderSubmitStatus;
+        g_tw->orderEmit(this, pOrder, false, true);
     }
 }
 
@@ -118,7 +119,7 @@ void CTradeSpiImp::OnRtnTrade(CThostFtdcTradeField *pTrade)
 {
     if(pTrade)
     {
-        g_tw->tradeEmit(this, pTrade, true);
+        g_tw->tradeEmit(this, pTrade, false);
     }
 }
 
@@ -184,10 +185,15 @@ void CTradeSpiImp::OnRspQryTrade(CThostFtdcTradeField *pTrade, CThostFtdcRspInfo
 
 void CTradeSpiImp::OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pInvestorPosition, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-    qInfo() << "OnRspQryInvestorPosition: " << bIsLast;
+ //   qInfo() << "OnRspQryInvestorPosition: " << bIsLast;
+    if(pInvestorPosition)
+        qInfo() << "OnRspQryInvestorPosition: " << pInvestorPosition->InstrumentID << pInvestorPosition->ExchangeID
+                << pInvestorPosition->PosiDirection << pInvestorPosition->YdPosition
+                << pInvestorPosition->Position << pInvestorPosition->LongFrozen
+                << pInvestorPosition->ShortFrozen << pInvestorPosition->PositionProfit;
+
     if(pInvestorPosition && !bIsLast)
     {
-        qInfo() << "OnRspQryInvestorPosition: " << pInvestorPosition->InstrumentID << pInvestorPosition->PosiDirection << pInvestorPosition->Position << pInvestorPosition->PositionCost << pInvestorPosition->PositionProfit;
         g_tw->posiEmit(this, pInvestorPosition);
     }
 	if(bIsLast)

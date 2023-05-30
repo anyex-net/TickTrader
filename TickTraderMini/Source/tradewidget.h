@@ -113,7 +113,7 @@ public:
     // 添加账户资金消息
     void fundEmit(CTradeSpiImp * t, CThostFtdcTradingAccountField * pFund);
     // 添加订单消息
-    void orderEmit(CTradeSpiImp * t, CThostFtdcOrderField * pOrder, bool bLast = false);
+    void orderEmit(CTradeSpiImp * t, CThostFtdcOrderField * pOrder, bool bLast = false, bool push = false);
     // 添加成交消息
     void tradeEmit(CTradeSpiImp * t, CThostFtdcTradeField * pTrade, bool bLast = false);
     // 订单消息推送
@@ -147,12 +147,15 @@ public:
     void checkFloatingPL(CThostFtdcDepthMarketDataField * sq);
 protected:
     void closeEvent (QCloseEvent * event);
+    void updatePostion(CThostFtdcOrderField * pOrder);
 private:
     // 状态栏提示信息
     QLabel * msgLabel;
 
     QTimer m_timer;
     QTimer m_timerFreshTips;
+    QList<int> m_neddReqPos;
+    bool    m_reqPosEndFlag;
 public slots:
     void onTimerReqPos();
     void slot_showOrderWin(TThostFtdcInstrumentIDType m_strInstr);
@@ -168,7 +171,7 @@ public slots:
     // 收到合约信息提送
     void addInstr(CTradeSpiImp * t);
     // 添加订单记录
-    void addOrder(CTradeSpiImp * t, CThostFtdcOrderField * pOrder, bool bLast);
+    void addOrder(CTradeSpiImp * t, CThostFtdcOrderField * pOrder, bool bLast, bool push);
     // 添加持仓记录
     void addPosi(CTradeSpiImp * t, CThostFtdcInvestorPositionField * pPosi, bool bLast);
     // 添加账户资金记录
@@ -211,7 +214,7 @@ signals:
     // 收到合约信息提送
     void getInstrPush(CTradeSpiImp * t);
     // 收到订单提送
-    void getOrderPush(CTradeSpiImp * t, CThostFtdcOrderField * order, bool bLast);
+    void getOrderPush(CTradeSpiImp * t, CThostFtdcOrderField * order, bool bLast, bool push);
     // 收到持仓提送
     void getPosiPush(CTradeSpiImp * t,CThostFtdcInvestorPositionField * pPosi, bool bLast);
     // 收到资金推送

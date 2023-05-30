@@ -268,6 +268,9 @@ TradeWidget::TradeWidget(QWidget *parent, Qt::WindowFlags flags)
     setAttribute(Qt::WA_DeleteOnClose, true);
     setGeometry(DW/2-160,DH/2-250,320,500);
 
+    m_neddReqPos.clear();
+    m_reqPosEndFlag = true;
+
     connect(&m_timer, SIGNAL(timeout()), this, SLOT(onTimerReqPos()));
     connect(&m_timerFreshTips, SIGNAL(timeout()), this, SLOT(onTimerClearTips()));
 }
@@ -456,7 +459,7 @@ void TradeWidget::fundEmit(CTradeSpiImp * t, CThostFtdcTradingAccountField * pFu
 }
 
 // 添加订单消息
-void TradeWidget::orderEmit(CTradeSpiImp * t, CThostFtdcOrderField * pOrder, bool bLast)
+void TradeWidget::orderEmit(CTradeSpiImp * t, CThostFtdcOrderField * pOrder, bool bLast, bool push)
 {
     if(pOrder){
         CThostFtdcOrderField * order = new CThostFtdcOrderField;
@@ -467,10 +470,10 @@ void TradeWidget::orderEmit(CTradeSpiImp * t, CThostFtdcOrderField * pOrder, boo
             strncpy(oRsp.OrderRef, order->OrderRef, sizeof(oRsp.OrderRef));
             checkCancelOrder(&oRsp);
         }
-        emit getOrderPush(t, order, bLast);
+        emit getOrderPush(t, order, bLast, push);
     }
     else
-        emit getOrderPush(t, pOrder, bLast);
+        emit getOrderPush(t, pOrder, bLast, push);
 }
 
 // 添加成交消息
@@ -810,7 +813,7 @@ void TradeWidget::addInstr(CTradeSpiImp * t)
 }
 
 // 添加订单记录
-void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool bLast)
+void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool bLast, bool push)
 {
     if(order)
     {
@@ -841,6 +844,7 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
     }
     if(!order)return;
     //mutex.lock();
+    bool bEqOrderStatus = false;
     CThostFtdcOrderField & pOrder = *order;
     QMapIterator<QString, TradeInfo> i(tradeInfoLst);
     int scale = getScale(pOrder.InstrumentID);
@@ -863,6 +867,10 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
             }
             else
             {
+                qInfo() << "search Order: " << order->OrderRef << QString::fromLocal8Bit(order->StatusMsg) << order->OrderStatus
+                     << order->OrderSubmitStatus << olt->OrderStatus;
+                if(olt->OrderStatus == order->OrderStatus)
+                    bEqOrderStatus = true;
                 ::memcpy(olt,order,sizeof(CThostFtdcOrderField));
                 delete order;
             }
@@ -878,6 +886,156 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
     {
         CSubmit->update();
     }
+
+    if(push && !bEqOrderStatus){
+        updatePostion(order);
+    }
+}
+
+void TradeWidget::updatePostion(CThostFtdcOrderField *pOrder)
+{
+    qInfo() << "m_neddReqPos: " << m_neddReqPos.size();
+    if(m_neddReqPos.size() < 1)
+        m_neddReqPos.append(1);
+
+/*    qInfo() << "updatePostion: " << pOrder->InstrumentID << pOrder->ExchangeID << pOrder->OrderStatus
+            << pOrder->OrderSubmitStatus << pOrder->Direction << pOrder->VolumeTotalOriginal
+            << pOrder->VolumeTraded << pOrder->VolumeTotal;
+
+
+    CThostFtdcOrderField *order = pOrder;
+    TradeInfo & tf = tradeInfoLst[loginW->userName];
+    QMap<QString,PosiPloy *>::const_iterator iter = tf.posiLst.find(QString::fromLocal8Bit(order->InstrumentID));
+    PosiPloy * pploy = iter != tf.posiLst.end() ? iter.value():NULL;
+    QList<CThostFtdcInvestorPositionField *> posi;
+    if(pploy)
+    {
+        posi = pploy->posi;
+        for(int index = 0; index < posi.size(); index++)
+        {
+            if((posi[index]->PosiDirection == THOST_FTDC_PD_Long && order->Direction == THOST_FTDC_D_Buy)
+             || (posi[index]->PosiDirection == THOST_FTDC_PD_Short && order->Direction == THOST_FTDC_D_Sell))
+            {
+                if(order->OrderStatus == THOST_FTDC_OST_AllTraded)
+                {
+                    if(order->CombOffsetFlag[0] == THOST_FTDC_OF_Open)  //开仓
+                        posi[index]->Position += order->VolumeTotalOriginal;
+                    else
+                    {
+                        if(order->CombOffsetFlag[0] == THOST_FTDC_OF_Close)    //平仓
+                    {
+                        posi[index]->Position -= order->VolumeTotalOriginal;
+                    }
+                    else if(order->CombOffsetFlag[0] == THOST_FTDC_OF_CloseYesterday) //平昨
+                    {
+                        posi[index]->Position -= order->VolumeTotalOriginal;
+                        posi[index]->YdPosition -= order->VolumeTotalOriginal;
+                    }
+                    else if(order->CombOffsetFlag[0] == THOST_FTDC_OF_CloseToday) //平今
+                    {
+                        posi[index]->Position -= order->VolumeTotalOriginal;
+                    }
+
+                    if(order->Direction == THOST_FTDC_D_Buy)
+                        posi[index]->LongFrozen = (posi[index]->LongFrozen - order->VolumeTotalOriginal + order->VolumeTotal);
+                    else
+                        posi[index]->ShortFrozen = (posi[index]->ShortFrozen - order->VolumeTotalOriginal + order->VolumeTotal);
+                    }
+                }
+                else if(order->OrderStatus == THOST_FTDC_OST_PartTradedQueueing)
+                {
+                    if(order->CombOffsetFlag[0] == THOST_FTDC_OF_Open)  //开仓
+                        posi[index]->Position += order->VolumeTraded;
+                    else
+                    {
+                        if(order->CombOffsetFlag[0] == THOST_FTDC_OF_Close)    //平仓
+                        {
+                            posi[index]->Position -= order->VolumeTraded;
+                        }
+                        else if(order->CombOffsetFlag[0] == THOST_FTDC_OF_CloseYesterday) //平昨
+                        {
+                            posi[index]->Position -= order->VolumeTraded;
+                            posi[index]->YdPosition -= order->VolumeTraded;
+                        }
+                        else if(order->CombOffsetFlag[0] == THOST_FTDC_OF_CloseToday) //平今
+                        {
+                            posi[index]->Position -= order->VolumeTraded;
+                        }
+                        if(order->Direction == THOST_FTDC_D_Buy)
+                            posi[index]->LongFrozen = (posi[index]->LongFrozen - order->VolumeTotalOriginal + order->VolumeTotal);
+                        else
+                            posi[index]->ShortFrozen = (posi[index]->ShortFrozen - order->VolumeTotalOriginal + order->VolumeTotal);
+                   }
+                }
+                else if(order->OrderStatus == THOST_FTDC_OST_PartTradedNotQueueing)
+                {
+//                    if(order->CombOffsetFlag[0] == THOST_FTDC_OF_Open)  //开仓
+//                        posi[index]->Position += order->VolumeTraded;
+//                    else
+//                    {
+//                        if(order->CombOffsetFlag[0] == THOST_FTDC_OF_Close)    //平仓
+//                        {
+//                            posi[index]->Position -= order->VolumeTraded;
+//                        }
+//                        else if(order->CombOffsetFlag[0] == THOST_FTDC_OF_CloseYesterday) //平昨
+//                        {
+//                            posi[index]->Position -= order->VolumeTraded;
+//                            posi[index]->YdPosition -= order->VolumeTraded;
+//                        }
+//                        else if(order->CombOffsetFlag[0] == THOST_FTDC_OF_CloseToday) //平今
+//                        {
+//                            posi[index]->Position -= order->VolumeTraded;
+//                        }
+
+//                        if(order->Direction == THOST_FTDC_D_Buy)
+//                            posi[index]->LongFrozen -= order->VolumeTotal;
+//                        else
+//                            posi[index]->ShortFrozen -= order->VolumeTotal;
+//                    }
+                }
+                else if(order->OrderStatus == THOST_FTDC_OST_NoTradeQueueing)
+                {
+                    if(order->CombOffsetFlag[0] == THOST_FTDC_OF_Open)  //开仓
+                    {
+                        //
+                    }
+                    else
+                    {
+                        if(order->Direction == THOST_FTDC_D_Buy)
+                            posi[index]->LongFrozen += order->VolumeTotal;
+                        else
+                            posi[index]->ShortFrozen += order->VolumeTotal;
+                    }
+                }
+                else if(order->OrderStatus == THOST_FTDC_OST_Canceled)
+                {
+                    if(order->CombOffsetFlag[0] == THOST_FTDC_OF_Open)  //开仓
+                    {
+                        //
+                    }
+                    else if(order->CombOffsetFlag[0] == THOST_FTDC_OF_Close
+                            || order->CombOffsetFlag[0] == THOST_FTDC_OF_CloseYesterday
+                            || order->CombOffsetFlag[0] == THOST_FTDC_OF_CloseToday)    //平仓
+                    {
+                        if(order->Direction == THOST_FTDC_D_Buy)
+                            posi[index]->LongFrozen -= order->VolumeTotal;
+                        else
+                            posi[index]->ShortFrozen -= order->VolumeTotal;
+                    }
+                }
+                qInfo() << "updatePostion2: " << posi[index]->InstrumentID << posi[index]->ExchangeID
+                        << posi[index]->PosiDirection << posi[index]->YdPosition
+                        << posi[index]->Position << posi[index]->LongFrozen
+                        << posi[index]->ShortFrozen;
+            }
+        }
+        pploy->posi = posi;
+    }
+
+    if(cmWidget)
+    {
+        cmWidget->update();
+    }*/
 }
 
 // 添加成交记录
@@ -895,7 +1053,11 @@ void TradeWidget::addTrade(CTradeSpiImp * t, CThostFtdcTradeField  * trade, bool
             if(ret == -2 || ret == -3)
                 QThread::msleep(100);
             else
+            {
+                tradeInfoLst[loginW->userName].posiLst.clear();
+                m_reqPosEndFlag = false;
                 break;
+            }
         }
     }
     if(!trade) return;
@@ -926,6 +1088,9 @@ void TradeWidget::addTrade(CTradeSpiImp * t, CThostFtdcTradeField  * trade, bool
 
 void TradeWidget::onTimerReqPos()
 {
+    if(m_neddReqPos.size() <= 0 || !m_reqPosEndFlag)
+        return;
+
     for( ; ; )
     {
         QThread::msleep(1000);
@@ -935,8 +1100,12 @@ void TradeWidget::onTimerReqPos()
         qInfo() << "ReqQryInvestorPosition: " << ret;
         if(ret == -2 || ret == -3)
             QThread::msleep(100);
-        else
+        else{
+            tradeInfoLst[loginW->userName].posiLst.clear();
+            m_reqPosEndFlag = false;
+            m_neddReqPos.removeFirst();
             break;
+        }
     }
 }
 
@@ -976,7 +1145,7 @@ void TradeWidget::addFunds(CTradeSpiImp * t, CThostFtdcTradingAccountField * fun
     }
     delete fund;
 
-//    m_timer.start(5000);
+    m_timer.start(300);
 }
 
 
@@ -986,6 +1155,9 @@ void TradeWidget::addPosi(CTradeSpiImp * t, CThostFtdcInvestorPositionField * po
     {
         for( ; ; )
         {
+            if(m_neddReqPos.size() > 0)
+                break;
+
             QThread::msleep(1000);
             int nRequestIDs = CreateNewRequestID();
             CThostFtdcQryTradingAccountField reqInfo = {0};
@@ -1032,13 +1204,39 @@ void TradeWidget::addPosi(CTradeSpiImp * t, CThostFtdcInvestorPositionField * po
             }
             else
             {
+                bool have = false;
                 for(int index = 0; index<oltp->posi.size(); index++)
                 {
-                    CThostFtdcInvestorPositionField *pTemp = oltp->posi.at(0);
-                    if(pTemp->PosiDirection == posi->PosiDirection)
+                    CThostFtdcInvestorPositionField *pTemp = oltp->posi.at(index);
+                    if(pTemp->PosiDirection == posi->PosiDirection){
+                        pTemp->YdPosition += posi->YdPosition;
+                        pTemp->Position += posi->Position;
+                        pTemp->LongFrozen += posi->LongFrozen;
+                        pTemp->ShortFrozen += posi->ShortFrozen;
+                        pTemp->LongFrozenAmount += posi->LongFrozenAmount;
+                        pTemp->ShortFrozenAmount += posi->ShortFrozenAmount;
+                        pTemp->OpenVolume += posi->OpenVolume;
+                        pTemp->CloseVolume += posi->CloseVolume;
+                        pTemp->OpenAmount += posi->OpenAmount;
+                        pTemp->CloseAmount += posi->CloseAmount;
+                        pTemp->PositionCost += posi->PositionCost;
+                        pTemp->UseMargin += posi->UseMargin;
+                        pTemp->Commission += posi->Commission;
+                        pTemp->CloseProfit += posi->CloseProfit;
+                        pTemp->PositionProfit += posi->PositionProfit;
+                        pTemp->CloseProfitByDate += posi->CloseProfitByDate;
+                        pTemp->CloseProfitByTrade += posi->CloseProfitByTrade;
+                        pTemp->FrozenMargin += posi->FrozenMargin;
+                        pTemp->FrozenCash += posi->FrozenCash;
+                        pTemp->FrozenCommission += posi->FrozenCommission;
                         oltp->posi.removeAt(index);
+                        oltp->posi.append(pTemp);
+                        have = true;
+                        break;
+                    }
                 }
-                oltp->posi.append(posi);
+                if(!have)
+                    oltp->posi.append(posi);
 //                ::memcpy(oltp->posi, posi, sizeof(CThostFtdcInvestorPositionField));
 //                CThostFtdcDepthMarketDataField * p = quotMap[QString::fromLocal8Bit(posi->InstrumentID)];
 //				if(p && p->Price > 0)
@@ -1051,6 +1249,7 @@ void TradeWidget::addPosi(CTradeSpiImp * t, CThostFtdcInvestorPositionField * po
             break;
         }
     }
+    m_reqPosEndFlag = true;
     //mutex.unlock();
     if(cmWidget && bLast)
     {
@@ -1151,7 +1350,7 @@ void TradeWidget::initTradeWin()
     connect(loginW, SIGNAL(pushTradeToFrom(TRADE_SIGNAL)),this, SLOT(comuWithTradeImp(TRADE_SIGNAL)), Qt::QueuedConnection);
     connect(loginW, SIGNAL(errShow(int, QString)),this, SLOT(errManage(int, QString)), Qt::QueuedConnection);
     // API 信号槽
-    connect(this, SIGNAL(getOrderPush(CTradeSpiImp *, CThostFtdcOrderField *, bool)),this, SLOT(addOrder(CTradeSpiImp *, CThostFtdcOrderField *, bool)), Qt::QueuedConnection);
+    connect(this, SIGNAL(getOrderPush(CTradeSpiImp *, CThostFtdcOrderField *, bool, bool)),this, SLOT(addOrder(CTradeSpiImp *, CThostFtdcOrderField *, bool, bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(getPosiPush(CTradeSpiImp *, CThostFtdcInvestorPositionField *, bool)),this, SLOT(addPosi(CTradeSpiImp *, CThostFtdcInvestorPositionField *, bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(getFundPush(CTradeSpiImp *, CThostFtdcTradingAccountField *)),this, SLOT(addFunds(CTradeSpiImp *, CThostFtdcTradingAccountField *)), Qt::QueuedConnection);
     connect(this, SIGNAL(getTradePush(CTradeSpiImp *, CThostFtdcTradeField *, bool)),this, SLOT(addTrade(CTradeSpiImp *, CThostFtdcTradeField *, bool)), Qt::QueuedConnection);
