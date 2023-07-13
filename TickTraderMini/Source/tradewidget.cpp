@@ -298,7 +298,7 @@ void TradeWidget::doCancelOrder(CThostFtdcInputOrderActionField *pOrderCancelRsp
             int nRequestID = CreateNewRequestID();
             CThostFtdcInputOrderField pInputOrder;
             ::memset(&pInputOrder,0,sizeof(CThostFtdcInputOrderField));
-            strncpy(pInputOrder.BrokerID, loginW->m_users.BrokerID, sizeof(pInputOrder.BrokerID));
+            strncpy(pInputOrder.BrokerID, loginW->brokerID, sizeof(pInputOrder.BrokerID));
             strncpy(pInputOrder.InvestorID,iti.InvestorID, sizeof(pInputOrder.InvestorID)); /* 投资者号 */
             strncpy(pInputOrder.InstrumentID, iti.InstrumentID, sizeof(pInputOrder.InstrumentID));
             strncpy(pInputOrder.ExchangeID, iti.ExchangeID, sizeof(pInputOrder.ExchangeID));
@@ -372,6 +372,8 @@ void TradeWidget::runTrade(UserInfo & element)
     temp.orderLst.clear();
     temp.tradeLst.clear();
     temp.posiLst.clear();
+    temp.longPosis.clear();
+    temp.shortPosis.clear();
     ::memset(temp.fund,0,sizeof(CThostFtdcTradingAccountField));
     strncpy(temp.fund->AccountID,temp.accountName.toLatin1().data(),sizeof(temp.fund->AccountID));
     temp.api=pTraderApi;
@@ -477,15 +479,15 @@ void TradeWidget::orderEmit(CTradeSpiImp * t, CThostFtdcOrderField * pOrder, boo
 }
 
 // 添加成交消息
-void TradeWidget::tradeEmit(CTradeSpiImp * t, CThostFtdcTradeField * pTrade, bool bLast)
+void TradeWidget::tradeEmit(CTradeSpiImp * t, CThostFtdcTradeField * pTrade, bool bLast, bool push)
 {
     if(pTrade){
         CThostFtdcTradeField * trade = new CThostFtdcTradeField;
         ::memcpy(trade, pTrade, sizeof(CThostFtdcTradeField));
-        emit getTradePush(t, trade, bLast);
+        emit getTradePush(t, trade, bLast, push);
     }
     else
-        emit getTradePush(t, pTrade, bLast);
+        emit getTradePush(t, pTrade, bLast, push);
 }
 
 // 订单消息推送
@@ -493,6 +495,11 @@ void TradeWidget::orderMessageEmit(QString mes)
 {
     QString mess = mes;
     emit orderMessage(mess);
+}
+
+void TradeWidget::orderInsertRsp(QString orderRef)
+{
+    emit orderInsertRspPush(orderRef);
 }
 
 // 添加行情记录
@@ -720,7 +727,7 @@ void TradeWidget::checkOrderStatus(CThostFtdcDepthMarketDataField * cQuot)
         {
             CThostFtdcInputOrderField pInputOrder;
             ::memset(&pInputOrder,0,sizeof(CThostFtdcInputOrderField));
-            strncpy(pInputOrder.BrokerID, loginW->m_users.BrokerID, sizeof(pInputOrder.BrokerID));
+            strncpy(pInputOrder.BrokerID, loginW->brokerID, sizeof(pInputOrder.BrokerID));
             strncpy(pInputOrder.InvestorID, iti->InvestorID,sizeof(pInputOrder.InvestorID)); /* 投资者号 */
             memcpy(pInputOrder.InstrumentID, iti->InstrumentID,sizeof(pInputOrder.InstrumentID));
             pInputOrder.Direction = iti->Direction; /* 买卖标志 */
@@ -846,6 +853,7 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
     //mutex.lock();
     bool bEqOrderStatus = false;
     CThostFtdcOrderField & pOrder = *order;
+    QString orderKey = QString("%1.%2.%3").arg(pOrder.FrontID).arg(pOrder.SessionID).arg(pOrder.OrderRef);
     QMapIterator<QString, TradeInfo> i(tradeInfoLst);
     int scale = getScale(pOrder.InstrumentID);
     while (i.hasNext())
@@ -853,7 +861,7 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
         TradeInfo & ti = tradeInfoLst[i.next().key()];
         if(ti.spi == t)
         {
-            CThostFtdcOrderField * olt = ti.orderLst[QString::fromLocal8Bit(pOrder.OrderRef)];
+            CThostFtdcOrderField * olt = ti.orderLst[orderKey];
             if(!olt)
             {
                 if(pOrder.InsertTime[0] == 0)
@@ -863,15 +871,17 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
                     sprintf(pOrder.InsertDate,"%04d%02d%02d", dt.year(), dt.month(),dt.day());
                     sprintf(pOrder.InsertTime,"%02d:%02d:%02d", t.hour(), t.minute(),t.second());
                 }
-                ti.orderLst[QString::fromLocal8Bit(pOrder.OrderRef)] = order;
+                ti.orderLst[orderKey] = order;
             }
             else
             {
                 qInfo() << "search Order: " << order->OrderRef << QString::fromLocal8Bit(order->StatusMsg) << order->OrderStatus
-                     << order->OrderSubmitStatus << olt->OrderStatus;
+                     << order->OrderSubmitStatus << olt->OrderStatus << olt->VolumeTotalOriginal << olt->VolumeTotal;
                 if(olt->OrderStatus == order->OrderStatus)
                     bEqOrderStatus = true;
+                int tempVol = olt->VolumeTotal;
                 ::memcpy(olt,order,sizeof(CThostFtdcOrderField));
+                olt->VolumeTotal = tempVol;
                 delete order;
             }
             break;
@@ -887,8 +897,127 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
         CSubmit->update();
     }
 
-    if(push && !bEqOrderStatus){
-        updatePostion(order);
+//    if(push && !bEqOrderStatus){
+//        updatePostion(order);
+//    }
+    if(push)
+    {
+        QMapIterator<QString, TradeInfo> ii(tradeInfoLst);
+        while (ii.hasNext())
+        {
+            TradeInfo & ti = tradeInfoLst[ii.next().key()];
+            if(ti.spi == t)
+            {
+                QMap<QString, stSelfPosi>::iterator iterPosi;
+                if (pOrder.CombOffsetFlag[0] != THOST_FTDC_OF_Open) {
+                    if (pOrder.Direction == THOST_FTDC_D_Buy) {
+                        iterPosi = ti.shortPosis.find(pOrder.InstrumentID);
+                        if (iterPosi == ti.shortPosis.end()) {
+                            stSelfPosi stPosi = { 0 };
+                            strcpy(stPosi.InstrumentID, pOrder.InstrumentID);
+                            strcpy(stPosi.ExchangeID, pOrder.ExchangeID);
+                            stPosi.BSFlag = THOST_FTDC_PD_Short;
+                            ti.shortPosis[stPosi.InstrumentID] = stPosi;
+                            iterPosi = ti.shortPosis.find(pOrder.InstrumentID);
+                        }
+                    }
+                    else {
+                        iterPosi = ti.longPosis.find(pOrder.InstrumentID);
+                        if (iterPosi == ti.longPosis.end()) {
+                            stSelfPosi stPosi = { 0 };
+                            strcpy(stPosi.InstrumentID, pOrder.InstrumentID);
+                            strcpy(stPosi.ExchangeID, pOrder.ExchangeID);
+                            stPosi.BSFlag = THOST_FTDC_PD_Long;
+                            ti.longPosis[stPosi.InstrumentID] = stPosi;
+                            iterPosi = ti.longPosis.find(pOrder.InstrumentID);
+                        }
+                    }
+                }
+                else {
+                    if (pOrder.Direction == THOST_FTDC_D_Sell) {
+                        iterPosi = ti.shortPosis.find(pOrder.InstrumentID);
+                        if (iterPosi == ti.shortPosis.end()) {
+                            stSelfPosi stPosi = { 0 };
+                            strcpy(stPosi.InstrumentID, pOrder.InstrumentID);
+                            strcpy(stPosi.ExchangeID, pOrder.ExchangeID);
+                            stPosi.BSFlag = THOST_FTDC_PD_Short;
+                            ti.shortPosis[stPosi.InstrumentID] = stPosi;
+                            iterPosi = ti.shortPosis.find(pOrder.InstrumentID);
+                        }
+                    }
+                    else {
+                        iterPosi = ti.longPosis.find(pOrder.InstrumentID);
+                        if (iterPosi == ti.longPosis.end()) {
+                            stSelfPosi stPosi = { 0 };
+                            strcpy(stPosi.InstrumentID, pOrder.InstrumentID);
+                            strcpy(stPosi.ExchangeID, pOrder.ExchangeID);
+                            stPosi.BSFlag = THOST_FTDC_PD_Long;
+                            ti.longPosis[stPosi.InstrumentID] = stPosi;
+                            iterPosi = ti.longPosis.find(pOrder.InstrumentID);
+                        }
+                    }
+                }
+                char szKey[100]={0};
+                sprintf(szKey,"%s",orderKey.toStdString().c_str());
+                auto iterOrder=ti.orderLst.find(szKey);
+                if(iterOrder==ti.orderLst.end()){
+                    ti.orderLst[szKey]=&pOrder;
+                    iterOrder=ti.orderLst.find(szKey);
+
+                    // 新平仓订单要冻结持仓
+                    if(m_IsInitEnd){
+                        if(iterOrder.value()->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+                            if(iterOrder.value()->Direction==THOST_FTDC_D_Buy){
+                                if(iterOrder.value()->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday){
+                                    iterPosi.value().TodayQtyFrozen+=iterOrder.value()->VolumeTotalOriginal;
+                                }
+                                iterPosi.value().QtyFrozen+=iterOrder.value()->VolumeTotalOriginal;
+                            }else{
+                                if(iterOrder.value()->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday){
+                                    iterPosi.value().TodayQtyFrozen+=iterOrder.value()->VolumeTotalOriginal;
+                                }
+                                iterPosi.value().QtyFrozen+=iterOrder.value()->VolumeTotalOriginal;
+                            }
+                        }
+                    }
+                }else{
+                    // 更新订单（只处理撤单，成交处理在成交回报中）
+                    if(iterOrder.value()->OrderStatus==THOST_FTDC_OST_Canceled || iterOrder.value()->OrderStatus==THOST_FTDC_OST_AllTraded){
+                        return; // 已处于最终状态的订单不再做任何处理
+                    }
+
+                    // 建立成交单对应的订单索引
+                    if(strlen(pOrder.OrderSysID)){
+                        mOrderIndexByExchangeIDAndOrderSysID[std::string(pOrder.ExchangeID)+std::string(pOrder.OrderSysID)]=szKey;
+                    }
+
+                    if(pOrder.OrderStatus!=THOST_FTDC_OST_Canceled){
+                        return;
+                    }
+
+                    iterOrder.value()->OrderStatus=THOST_FTDC_OST_Canceled;
+                    strcpy(iterOrder.value()->StatusMsg,pOrder.StatusMsg);
+
+                    // 已撤的平仓订单要释放冻结的持仓
+                    if(m_IsInitEnd){
+                        if(iterOrder.value()->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+                            if(iterOrder.value()->Direction==THOST_FTDC_D_Buy){
+                                if(iterOrder.value()->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday){
+                                    iterPosi.value().TodayQtyFrozen-=iterOrder.value()->VolumeTotal;
+                                }
+                                iterPosi.value().QtyFrozen-=iterOrder.value()->VolumeTotal;
+                            }else{
+                                if(iterOrder.value()->CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday){
+                                    iterPosi.value().TodayQtyFrozen-=iterOrder.value()->VolumeTotal;
+                                }
+                                iterPosi.value().QtyFrozen-=iterOrder.value()->VolumeTotal;
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+        }
     }
 }
 
@@ -1039,7 +1168,7 @@ void TradeWidget::updatePostion(CThostFtdcOrderField *pOrder)
 }
 
 // 添加成交记录
-void TradeWidget::addTrade(CTradeSpiImp * t, CThostFtdcTradeField  * trade, bool bLast)
+void TradeWidget::addTrade(CTradeSpiImp * t, CThostFtdcTradeField  * trade, bool bLast, bool push)
 {
     if(bLast)
     {
@@ -1082,6 +1211,136 @@ void TradeWidget::addTrade(CTradeSpiImp * t, CThostFtdcTradeField  * trade, bool
                 delete trade;
             }
             break;
+        }
+    }
+    if(push)
+    {
+        QMapIterator<QString, TradeInfo> ii(tradeInfoLst);
+        while (ii.hasNext())
+        {
+            TradeInfo & ti = tradeInfoLst[ii.next().key()];
+            if(ti.spi == t)
+            {// 计算订单成交均价
+                std::map<std::string,std::string>::iterator iterIndex=mOrderIndexByExchangeIDAndOrderSysID.find(std::string(pTrade.ExchangeID)+std::string(pTrade.OrderSysID));
+                if(iterIndex!=mOrderIndexByExchangeIDAndOrderSysID.end()){
+                    QMap<QString, CThostFtdcOrderField *>::iterator iterOrder;
+                    if((iterOrder=ti.orderLst.find(QString::fromStdString(iterIndex->second)))!=ti.orderLst.end()){
+         //               iterOrder.value()->AvgPrice=(iterOrder->second.AvgPrice*(iterOrder->second.Qty-iterOrder->second.QtyLeft)+stTrade.Price*stTrade.Qty)/(iterOrder->second.Qty-iterOrder->second.QtyLeft+stTrade.Qty);
+                        iterOrder.value()->VolumeTotal-=pTrade.Volume;
+                        if(iterOrder.value()->VolumeTotal==0)
+                            iterOrder.value()->OrderStatus=THOST_FTDC_OST_AllTraded;
+                        strcpy(iterOrder.value()->InsertDate,pTrade.TradeDate);
+                        strcpy(iterOrder.value()->UpdateTime,pTrade.TradeTime);
+                    }
+                }
+
+                // 持仓处理
+                QMap<QString, stSelfPosi>::iterator iterPosi;
+                if ((pTrade.OffsetFlag != THOST_FTDC_OF_Open && pTrade.Direction == THOST_FTDC_D_Buy) || (pTrade.OffsetFlag == THOST_FTDC_OF_Open && pTrade.Direction == THOST_FTDC_D_Sell)) {
+                    iterPosi = ti.shortPosis.find(pTrade.InstrumentID);
+                    if (iterPosi == ti.shortPosis.end()) {
+                        stSelfPosi stPosi = { 0 };
+                        strcpy(stPosi.InstrumentID, pTrade.InstrumentID);
+                        strcpy(stPosi.ExchangeID, pTrade.ExchangeID);
+                        stPosi.BSFlag = THOST_FTDC_PD_Short;
+                        ti.shortPosis[stPosi.InstrumentID] = stPosi;
+                        iterPosi = ti.shortPosis.find(pTrade.InstrumentID);
+                    }
+                }
+                else {
+                    iterPosi = ti.longPosis.find(pTrade.InstrumentID);
+                    if (iterPosi == ti.longPosis.end()) {
+                        stSelfPosi stPosi = { 0 };
+                        strcpy(stPosi.InstrumentID, pTrade.InstrumentID);
+                        strcpy(stPosi.ExchangeID, pTrade.ExchangeID);
+                        stPosi.BSFlag = THOST_FTDC_PD_Long;
+                        ti.longPosis[stPosi.InstrumentID] = stPosi;
+                        iterPosi = ti.longPosis.find(pTrade.InstrumentID);
+                    }
+                }
+
+
+                if(m_IsInitEnd){
+                    if(pTrade.Direction==THOST_FTDC_D_Buy){
+                        if(pTrade.OffsetFlag==THOST_FTDC_OF_Open){
+                            iterPosi.value().Price=(iterPosi.value().Price*iterPosi.value().Qty + pTrade.Volume*pTrade.Price)/(iterPosi.value().Qty+pTrade.Volume);
+                            iterPosi.value().Qty+=pTrade.Volume;
+                            iterPosi.value().TodayQty+=pTrade.Volume;
+                        }else{
+                            if((!strcmp(pTrade.ExchangeID,"SHFE") || !strcmp(pTrade.ExchangeID,"INE")) && pTrade.OffsetFlag==THOST_FTDC_OF_CloseToday){
+                                iterPosi.value().TodayQty-=pTrade.Volume;
+                                iterPosi.value().TodayQtyFrozen-=pTrade.Volume;
+                            }
+                            iterPosi.value().Qty-=pTrade.Volume;
+                            iterPosi.value().QtyFrozen-=pTrade.Volume;
+                            if(iterPosi.value().Qty==0){
+                                iterPosi.value().Price=0;
+                            }
+                        }
+                    }else{
+                        if(pTrade.OffsetFlag==THOST_FTDC_OF_Open){
+                            iterPosi.value().Price=(iterPosi.value().Price*iterPosi.value().Qty + pTrade.Volume*pTrade.Price)/(iterPosi.value().Qty+pTrade.Volume);
+                            iterPosi.value().Qty+=pTrade.Volume;
+                            iterPosi.value().TodayQty+=pTrade.Volume;
+                        }else{
+                            if((!strcmp(pTrade.ExchangeID,"SHFE") || !strcmp(pTrade.ExchangeID,"INE")) && pTrade.OffsetFlag==THOST_FTDC_OF_CloseToday){
+                                iterPosi.value().TodayQty-=pTrade.Volume;
+                                iterPosi.value().TodayQtyFrozen-=pTrade.Volume;
+                            }
+                            iterPosi.value().Qty-=pTrade.Volume;
+                            iterPosi.value().QtyFrozen-=pTrade.Volume;
+                            if(iterPosi.value().Qty==0){
+                                iterPosi.value().Price=0;
+                            }
+                        }
+                    }
+                    QMap<QString, CThostFtdcInstrumentField *>::iterator iterInstrument=pTraderSpi->tempCons.find(pTrade.InstrumentID);
+                    if(iterInstrument!=pTraderSpi->tempCons.end()){
+                        if(iterPosi.value().BSFlag == THOST_FTDC_PD_Long){
+                            iterPosi.value().Margin=iterPosi.value().Qty*iterPosi.value().Price*iterInstrument.value()->VolumeMultiple * iterInstrument.value()->LongMarginRatio +
+                                pTrade.Volume*pTrade.Price*iterInstrument.value()->VolumeMultiple * iterInstrument.value()->LongMarginRatio;
+                        }
+                        else{
+                            iterPosi.value().Margin=iterPosi.value().Qty*iterPosi.value().Price*iterInstrument.value()->VolumeMultiple * iterInstrument.value()->ShortMarginRatio +
+                                pTrade.Volume*pTrade.Price*iterInstrument.value()->VolumeMultiple * iterInstrument.value()->ShortMarginRatio;
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+void TradeWidget::onOrderInsetRspMsg(QString orderRef)
+{
+    QMapIterator<QString, TradeInfo> ii(tradeInfoLst);
+    while (ii.hasNext())
+    {
+        TradeInfo & ti = tradeInfoLst[ii.next().key()];
+        QMap<QString, CThostFtdcOrderField *>::iterator iterOrder=ti.orderLst.find(orderRef);
+        if(iterOrder!=ti.orderLst.end()){
+            if(iterOrder.value()->CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+                QMap<QString, stSelfPosi>::iterator iterPosi;
+                if(iterOrder.value()->Direction==THOST_FTDC_D_Buy){
+                    iterPosi = ti.shortPosis.find(iterOrder.value()->InstrumentID);
+                    if (iterPosi != ti.shortPosis.end()) {
+                        if ((!strcmp(iterOrder.value()->ExchangeID, "SHFE") || !strcmp(iterOrder.value()->ExchangeID, "INE")) && iterOrder.value()->CombOffsetFlag[0] == THOST_FTDC_OF_CloseToday) {
+                            iterPosi.value().TodayQtyFrozen -= iterOrder.value()->VolumeTotal;
+                        }
+                        iterPosi.value().QtyFrozen -= iterOrder.value()->VolumeTotal;
+                    }
+                }else{
+                    iterPosi = ti.longPosis.find(iterOrder.value()->InstrumentID);
+                    if (iterPosi != ti.longPosis.end()) {
+                        if ((!strcmp(iterOrder.value()->ExchangeID, "SHFE") || !strcmp(iterOrder.value()->ExchangeID, "INE")) && iterOrder.value()->CombOffsetFlag[0] == THOST_FTDC_OF_CloseToday) {
+                            iterPosi.value().TodayQtyFrozen -= iterOrder.value()->VolumeTotal;
+                        }
+                        iterPosi.value().QtyFrozen -= iterOrder.value()->VolumeTotal;
+                    }
+                }
+            }
+            iterOrder.value()->OrderStatus=THOST_FTDC_OST_Canceled;
         }
     }
 }
@@ -1145,7 +1404,7 @@ void TradeWidget::addFunds(CTradeSpiImp * t, CThostFtdcTradingAccountField * fun
     }
     delete fund;
 
-    m_timer.start(300);
+//    m_timer.start(300);
 }
 
 
@@ -1246,9 +1505,163 @@ void TradeWidget::addPosi(CTradeSpiImp * t, CThostFtdcInvestorPositionField * po
 //				}
 //				delete posi;
             }
+
+            //new auto start
+            if (posi) {
+                stSelfPosi stPosi = {0};
+                QMap<QString,stSelfPosi>::iterator iterPosi;
+                if (posi->PosiDirection == THOST_FTDC_PD_Long) {
+                    if ((iterPosi = ti.longPosis.find(QString(posi->InstrumentID))) == ti.longPosis.end()) {
+                        strcpy(stPosi.InstrumentID, posi->InstrumentID);
+                        strcpy(stPosi.ExchangeID, posi->ExchangeID);
+                        stPosi.BSFlag = THOST_FTDC_PD_Long;
+                        ti.longPosis[QString(posi->InstrumentID)] = stPosi;
+                        iterPosi = ti.longPosis.find(QString(posi->InstrumentID));
+                    }
+                    iterPosi.value().Qty += posi->YdPosition;
+                    iterPosi.value().Price = iterPosi.value().Qty?posi->PreSettlementPrice:0;
+                } else {
+                    if ((iterPosi = ti.shortPosis.find(QString(posi->InstrumentID))) == ti.shortPosis.end()) {
+                        strcpy(stPosi.InstrumentID, posi->InstrumentID);
+                        strcpy(stPosi.ExchangeID, posi->ExchangeID);
+                        stPosi.BSFlag = THOST_FTDC_PD_Short;
+                        ti.shortPosis[QString(posi->InstrumentID)] = stPosi;
+                        iterPosi = ti.shortPosis.find(QString(posi->InstrumentID));
+                    }
+                    iterPosi.value().Qty += posi->YdPosition;
+                    iterPosi.value().Price = iterPosi.value().Qty?posi->PreSettlementPrice:0;
+                }
+                iterPosi.value().Margin+=posi->PreMargin;
+            }
+            if(bLast){
+                // 通过成交明细更新持仓
+                for(auto iter=ti.tradeLst.begin();iter!=ti.tradeLst.end();iter++){
+                    QMap<QString, CThostFtdcInstrumentField *>::iterator iterInstrument=pTraderSpi->tempCons.find(iter.value()->InstrumentID);
+                    if(iterInstrument==pTraderSpi->tempCons.end()){
+                        continue;
+                    }
+                    QMap<QString, stSelfPosi>::iterator iterPosi;
+                    if(iter.value()->Direction == THOST_FTDC_D_Buy){
+                        if(iter.value()->OffsetFlag == THOST_FTDC_OF_Open){
+                            iterPosi = ti.longPosis.find(iter.value()->InstrumentID);
+                            if (iterPosi == ti.longPosis.end()) {
+                                stSelfPosi stPosi = { 0 };
+                                strcpy(stPosi.InstrumentID, iter.value()->InstrumentID);
+                                stPosi.BSFlag = THOST_FTDC_PD_Long;
+                                ti.longPosis[stPosi.InstrumentID] = stPosi;
+                                iterPosi = ti.longPosis.find(iter.value()->InstrumentID);
+                            }
+                            iterPosi.value().Price=(iterPosi.value().Price*iterPosi.value().Qty + iter.value()->Volume*iter.value()->Price)/(iterPosi.value().Qty + iter.value()->Volume);
+                            iterPosi.value().Qty+=iter.value()->Volume;
+                            iterPosi.value().TodayQty+=iter.value()->Volume;
+                            iterPosi.value().Margin = iterPosi.value().Qty * iterPosi.value().Price * iterInstrument.value()->VolumeMultiple * iterInstrument.value()->LongMarginRatio;
+                        }else{
+                            iterPosi = ti.shortPosis.find(iter.value()->InstrumentID);
+                            if (iterPosi == ti.shortPosis.end()) {
+                                stSelfPosi stPosi = { 0 };
+                                strcpy(stPosi.InstrumentID, iter.value()->InstrumentID);
+                                stPosi.BSFlag = THOST_FTDC_PD_Short;
+                                ti.shortPosis[stPosi.InstrumentID] = stPosi;
+                                iterPosi = ti.shortPosis.find(iter.value()->InstrumentID);
+                            }
+                            if(iter.value()->OffsetFlag==THOST_FTDC_OF_CloseToday){
+                                iterPosi.value().TodayQty-=iter.value()->Volume;
+                            }
+                            iterPosi.value().Qty-=iter.value()->Volume;
+                            if(iterPosi.value().Qty==0){
+                                iterPosi.value().Price=0;
+                            }
+                            iterPosi.value().Margin = iterPosi.value().Qty * iterPosi.value().Price * iterInstrument.value()->VolumeMultiple * iterInstrument.value()->ShortMarginRatio;
+                        }
+                    }else{
+                        if(iter.value()->OffsetFlag == THOST_FTDC_OF_Open){
+                            iterPosi = ti.shortPosis.find(iter.value()->InstrumentID);
+                            if (iterPosi == ti.shortPosis.end()) {
+                                stSelfPosi stPosi = { 0 };
+                                strcpy(stPosi.InstrumentID, iter.value()->InstrumentID);
+                                stPosi.BSFlag = THOST_FTDC_PD_Short;
+                                ti.shortPosis[stPosi.InstrumentID] = stPosi;
+                                iterPosi = ti.shortPosis.find(iter.value()->InstrumentID);
+                            }
+                            iterPosi.value().Price=(iterPosi.value().Price*iterPosi.value().Qty + iter.value()->Volume*iter.value()->Price)/(iterPosi.value().Qty+iter.value()->Volume);
+                            iterPosi.value().Qty+=iter.value()->Volume;
+                            iterPosi.value().TodayQty+=iter.value()->Volume;
+                            iterPosi.value().Margin = iterPosi.value().Qty * iterPosi.value().Price * iterInstrument.value()->VolumeMultiple * iterInstrument.value()->ShortMarginRatio;
+                        }else{
+                            iterPosi = ti.longPosis.find(iter.value()->InstrumentID);
+                            if (iterPosi == ti.longPosis.end()) {
+                                stSelfPosi stPosi = { 0 };
+                                strcpy(stPosi.InstrumentID, iter.value()->InstrumentID);
+                                stPosi.BSFlag = THOST_FTDC_PD_Long;
+                                ti.longPosis[stPosi.InstrumentID] = stPosi;
+                                iterPosi = ti.longPosis.find(iter.value()->InstrumentID);
+                            }
+                            if(iter.value()->OffsetFlag==THOST_FTDC_OF_CloseToday){
+                                iterPosi.value().TodayQty-=iter.value()->Volume;
+                            }
+                            iterPosi.value().Qty-=iter.value()->Volume;
+                            if(iterPosi.value().Qty==0){
+                                iterPosi.value().Price=0;
+                            }
+                            iterPosi.value().Margin = iterPosi.value().Qty * iterPosi.value().Price * iterInstrument.value()->VolumeMultiple * iterInstrument.value()->LongMarginRatio;
+                        }
+                    }
+                }
+
+                // 通过委托明细冻结持仓
+                for(auto iter=ti.orderLst.begin();iter!=ti.orderLst.end();iter++){
+                    QMap<QString, CThostFtdcInstrumentField *>::iterator iterInstrument=pTraderSpi->tempCons.find(iter.value()->InstrumentID);
+                    if(iterInstrument==pTraderSpi->tempCons.end()){
+                        continue;
+                    }
+                    if(iter.value()->OrderStatus==THOST_FTDC_OST_NoTradeQueueing || iter.value()->OrderStatus==THOST_FTDC_OST_PartTradedQueueing){
+                        QMap<QString, stSelfPosi>::iterator iterPosi;
+                        if (iter.value()->CombOffsetFlag[0] != THOST_FTDC_OF_Open) {
+                            if (iter.value()->Direction == THOST_FTDC_D_Buy) {
+                                iterPosi = ti.shortPosis.find(iter.value()->InstrumentID);
+                                if (iterPosi == ti.shortPosis.end()) {
+                                    stSelfPosi stPosi = { 0 };
+                                    strcpy(stPosi.InstrumentID, iter.value()->InstrumentID);
+                                    strcpy(stPosi.ExchangeID, iter.value()->ExchangeID);
+                                    stPosi.BSFlag = THOST_FTDC_PD_Short;
+                                    ti.shortPosis[stPosi.InstrumentID] = stPosi;
+                                    iterPosi = ti.shortPosis.find(iter.value()->InstrumentID);
+                                }
+                            }
+                            else {
+                                iterPosi = ti.longPosis.find(iter.value()->InstrumentID);
+                                if (iterPosi == ti.longPosis.end()) {
+                                    stSelfPosi stPosi = { 0 };
+                                    strcpy(stPosi.InstrumentID, iter.value()->InstrumentID);
+                                    strcpy(stPosi.ExchangeID, iter.value()->ExchangeID);
+                                    stPosi.BSFlag = THOST_FTDC_PD_Long;
+                                    ti.longPosis[stPosi.InstrumentID] = stPosi;
+                                    iterPosi = ti.longPosis.find(iter.value()->InstrumentID);
+                                }
+                            }
+                        }
+
+                        if(iter.value()->CombOffsetFlag[0] != THOST_FTDC_OF_Open){
+                            if(iter.value()->Direction == THOST_FTDC_D_Buy){
+                                if(iter.value()->CombOffsetFlag[0] == THOST_FTDC_OF_CloseToday){
+                                    iterPosi.value().TodayQtyFrozen+=iter.value()->VolumeTotal;
+                                }
+                                iterPosi.value().QtyFrozen+=iter.value()->VolumeTotal;
+                            }else{
+                                if(iter.value()->CombOffsetFlag[0] == THOST_FTDC_OF_CloseToday){
+                                    iterPosi.value().TodayQtyFrozen+=iter.value()->VolumeTotal;
+                                }
+                                iterPosi.value().QtyFrozen+=iter.value()->VolumeTotal;
+                            }
+                        }
+                    }
+                }
+            }
+            //new auto end
             break;
         }
     }
+
     m_reqPosEndFlag = true;
     //mutex.unlock();
     if(cmWidget && bLast)
@@ -1353,10 +1766,11 @@ void TradeWidget::initTradeWin()
     connect(this, SIGNAL(getOrderPush(CTradeSpiImp *, CThostFtdcOrderField *, bool, bool)),this, SLOT(addOrder(CTradeSpiImp *, CThostFtdcOrderField *, bool, bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(getPosiPush(CTradeSpiImp *, CThostFtdcInvestorPositionField *, bool)),this, SLOT(addPosi(CTradeSpiImp *, CThostFtdcInvestorPositionField *, bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(getFundPush(CTradeSpiImp *, CThostFtdcTradingAccountField *)),this, SLOT(addFunds(CTradeSpiImp *, CThostFtdcTradingAccountField *)), Qt::QueuedConnection);
-    connect(this, SIGNAL(getTradePush(CTradeSpiImp *, CThostFtdcTradeField *, bool)),this, SLOT(addTrade(CTradeSpiImp *, CThostFtdcTradeField *, bool)), Qt::QueuedConnection);
+    connect(this, SIGNAL(getTradePush(CTradeSpiImp *, CThostFtdcTradeField *, bool, bool)),this, SLOT(addTrade(CTradeSpiImp *, CThostFtdcTradeField *, bool, bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(getInstrPush(CTradeSpiImp *)),this, SLOT(addInstr(CTradeSpiImp *)), Qt::QueuedConnection);
     connect(this, SIGNAL(cancelOrder(CThostFtdcInputOrderActionField *)),this, SLOT(doCancelOrder(CThostFtdcInputOrderActionField *)), Qt::QueuedConnection);
     connect(this, SIGNAL(tradeConnSec(CTradeSpiImp *)),this, SLOT(doTradeConnSec(CTradeSpiImp *)), Qt::QueuedConnection);
+    connect(this, SIGNAL(orderInsertRspPush(QString)),this, SLOT(onOrderInsetRspMsg(QString)), Qt::QueuedConnection);
 
     // 订单消息处理
     connect(this, SIGNAL(orderMessage(QString)),this, SLOT(messageSrv(QString)), Qt::QueuedConnection);
@@ -1365,14 +1779,15 @@ void TradeWidget::initTradeWin()
 TradeWidget::~TradeWidget()
 {
     // 切断API推送
-    disconnect(this, SIGNAL(getOrderPush(CTradeSpiImp *, CThostFtdcOrderField *)),this, SLOT(addOrder(CTradeSpiImp *, CThostFtdcOrderField *)));
+    disconnect(this, SIGNAL(getOrderPush(CTradeSpiImp *, CThostFtdcOrderField *, bool, bool)),this, SLOT(addOrder(CTradeSpiImp *, CThostFtdcOrderField *, bool, bool)));
     disconnect(this, SIGNAL(getPosiPush(CTradeSpiImp *, CThostFtdcInvestorPositionField *)),this, SLOT(addPosi(CTradeSpiImp *, CThostFtdcInvestorPositionField *)));
     disconnect(this, SIGNAL(getFundPush(CTradeSpiImp *, CThostFtdcTradingAccountField *)),this, SLOT(addFunds(CTradeSpiImp *, CThostFtdcTradingAccountField *)));
-    disconnect(this, SIGNAL(getTradePush(CTradeSpiImp *, CThostFtdcTradeField *)),this, SLOT(addTrade(CTradeSpiImp *, CThostFtdcTradeField *)));
+    disconnect(this, SIGNAL(getTradePush(CTradeSpiImp *, CThostFtdcTradeField *, bool, bool)),this, SLOT(addTrade(CTradeSpiImp *, CThostFtdcTradeField *, bool, bool)));
     disconnect(this, SIGNAL(getInstrPush(CTradeSpiImp *)),this, SLOT(addInstr(CTradeSpiImp *)));
     disconnect(this, SIGNAL(getPpricePush(CThostFtdcDepthMarketDataField *)),this, SLOT(addPrice(CThostFtdcDepthMarketDataField *)));
     disconnect(this, SIGNAL(cancelOrder(CThostFtdcInputOrderActionField *)),this, SLOT(doCancelOrder(CThostFtdcInputOrderActionField *)));
     disconnect(this, SIGNAL(tradeConnSec(CTradeSpiImp *)),this, SLOT(doTradeConnSec(CTradeSpiImp *)));
+    disconnect(this, SIGNAL(orderInsertRspPush(QString)),this, SLOT(onOrderInsetRspMsg(QString)));
 
     exit(0);
 }

@@ -264,7 +264,7 @@ void OrderView::mouseReleaseEvent(QMouseEvent * event) {
 		int nRequestID = CreateNewRequestID();
         CThostFtdcInputOrderField pInputOrder;
         ::memset(&pInputOrder,0,sizeof(CThostFtdcInputOrderField));
-        strncpy(pInputOrder.BrokerID, loginW->m_users.BrokerID, sizeof(pInputOrder.BrokerID));
+        strncpy(pInputOrder.BrokerID, loginW->brokerID, sizeof(pInputOrder.BrokerID));
 		::strcpy(pInputOrder.InvestorID, loginW->userName);     /* 投资者号 */
 		::strcpy(pInputOrder.InstrumentID, selectInstr->curInstr->InstrumentID);     /* 合约号 */
 		::strcpy(pInputOrder.ExchangeID, selectInstr->curInstr->ExchangeID);   /* 交易所号 */
@@ -312,7 +312,7 @@ void OrderView::mouseReleaseEvent(QMouseEvent * event) {
 		int nRequestID = CreateNewRequestID();
         CThostFtdcInputOrderField pInputOrder;
         ::memset(&pInputOrder,0,sizeof(CThostFtdcInputOrderField));
-        strncpy(pInputOrder.BrokerID, loginW->m_users.BrokerID, sizeof(pInputOrder.BrokerID));
+        strncpy(pInputOrder.BrokerID, loginW->brokerID, sizeof(pInputOrder.BrokerID));
 		::strcpy(pInputOrder.InvestorID, loginW->userName);     /* 投资者号 */
 		::strcpy(pInputOrder.InstrumentID, selectInstr->curInstr->InstrumentID);     /* 合约号 */
 		::strcpy(pInputOrder.ExchangeID, selectInstr->curInstr->ExchangeID);   /* 交易所号 */

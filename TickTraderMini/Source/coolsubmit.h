@@ -80,6 +80,9 @@ public:
 	void dropAll(char bos);
 
     void getOrderOffsetFlag(CThostFtdcInputOrderField *pInputOrder, TThostFtdcVolumeType &OpenQty, TThostFtdcVolumeType &CloseQty, TThostFtdcVolumeType &CloseTodayQty);
+    void getOrderOffsetFlag1(CThostFtdcInputOrderField *pInputOrder, TThostFtdcVolumeType &OpenQty, TThostFtdcVolumeType &CloseQty, TThostFtdcVolumeType &CloseTodayQty);
+    void OrderInsert(CThostFtdcInputOrderField *pInputOrder, uchar OCFlag, int Qty,int nRequestID);
+
 private:
 	// 一页总行数
 	int linNum;

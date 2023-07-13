@@ -24,10 +24,10 @@ void CMdSpiImp::OnFrontConnected()
     if(!loginFlags)
     {
         CThostFtdcReqUserLoginField login = {0};
-        strncpy( login.BrokerID, loginW->m_users.BrokerID, sizeof(login.BrokerID));
+        strncpy( login.BrokerID, loginW->brokerID, sizeof(login.BrokerID));
         strncpy( login.UserID, loginW->userName, sizeof(login.UserID));
         strncpy( login.Password, loginW->password, sizeof(login.Password));
-        strcpy( login.UserProductInfo, "TICKTRADER" );
+        strcpy( login.UserProductInfo, "TickTrader" );
         strcpy( login.MacAddress, "fe80::75ef:97de:2366:e490" );
         strcpy( login.ClientIPAddress, "10.150.1.23" );
 

@@ -30,13 +30,15 @@ struct UserInfo
 {
     char name[16];
     char pass[16];
-    char BrokerID[16];
 };
 
 struct ServerAddr
 {
+    QString BrokerID;
     QString tradeServ;
     QString marketServ;
+    QString authCode;
+    QString appID;
 };
 
 struct PrivateIns
@@ -69,6 +71,9 @@ public:
 
     char userName[16];
     char password[16];
+    char brokerID[16];
+    char authCode[17];
+    char appID[33];
     DBServerInfo server;
     UserInfo m_users;
     QList<ServerAddr> m_listAddr;

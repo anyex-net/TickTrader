@@ -567,7 +567,7 @@ void CoolSubmit::updateOrder(char bos, double price, double price2)
                 int nRequestID = CreateNewRequestID();
                 CThostFtdcInputOrderActionField pCancelReq;
                 ::memset(&pCancelReq,0,sizeof(CThostFtdcInputOrderActionField));
-                strncpy(pCancelReq.BrokerID, loginW->m_users.BrokerID, sizeof(pCancelReq.BrokerID));
+                strncpy(pCancelReq.BrokerID, loginW->brokerID, sizeof(pCancelReq.BrokerID));
                 strncpy(pCancelReq.OrderRef,sOrder->OrderRef,sizeof(pCancelReq.OrderRef)); /* 订单号 */
                 strncpy(pCancelReq.InvestorID,sOrder->InvestorID,sizeof(pCancelReq.InvestorID)); /* 投资者号 */
                 strncpy(pCancelReq.InstrumentID,sOrder->InstrumentID,sizeof(pCancelReq.InstrumentID)); /* 合约号 */
@@ -622,7 +622,7 @@ void CoolSubmit::dropOrder(char bos, double price)
                 int nRequestID = CreateNewRequestID();
                 CThostFtdcInputOrderActionField pCancelReq;
                 ::memset(&pCancelReq,0,sizeof(CThostFtdcInputOrderActionField));
-                strncpy(pCancelReq.BrokerID, loginW->m_users.BrokerID, sizeof(pCancelReq.BrokerID));
+                strncpy(pCancelReq.BrokerID, loginW->brokerID, sizeof(pCancelReq.BrokerID));
                 strncpy(pCancelReq.OrderRef,sOrder->OrderRef,sizeof(pCancelReq.OrderRef)); /* 订单号 */
                 strncpy(pCancelReq.InvestorID,sOrder->InvestorID,sizeof(pCancelReq.InvestorID)); /* 投资者号 */
                 strncpy(pCancelReq.InstrumentID,sOrder->InstrumentID,sizeof(pCancelReq.InstrumentID)); /* 合约号 */
@@ -677,7 +677,7 @@ void CoolSubmit::dropAll(char bos)
                 int nRequestID = CreateNewRequestID();
                 CThostFtdcInputOrderActionField pCancelReq;
                 ::memset(&pCancelReq,0,sizeof(CThostFtdcInputOrderActionField));
-                strncpy(pCancelReq.BrokerID, loginW->m_users.BrokerID, sizeof(pCancelReq.BrokerID));
+                strncpy(pCancelReq.BrokerID, loginW->brokerID, sizeof(pCancelReq.BrokerID));
                 strncpy(pCancelReq.OrderRef,sOrder->OrderRef,sizeof(pCancelReq.OrderRef)); /* 订单号 */
                 strncpy(pCancelReq.InvestorID,sOrder->InvestorID,sizeof(pCancelReq.InvestorID)); /* 投资者号 */
                 strncpy(pCancelReq.InstrumentID,sOrder->InstrumentID,sizeof(pCancelReq.InstrumentID)); /* 合约号 */
@@ -911,6 +911,133 @@ void CoolSubmit::getOrderOffsetFlag(CThostFtdcInputOrderField *pInputOrder, TTho
     qInfo() << OpenQty << CloseQty << CloseTodayQty;
 }
 
+void CoolSubmit::getOrderOffsetFlag1(CThostFtdcInputOrderField *pInputOrder, TThostFtdcVolumeType &OpenQty, TThostFtdcVolumeType &CloseQty, TThostFtdcVolumeType &CloseTodayQty)
+{
+    OpenQty=0,CloseQty=0,CloseTodayQty=0;
+
+    TThostFtdcVolumeType SellQty, SellQtyFrozen, TodaySellQty, TodaySellQtyFrozen;
+    TThostFtdcVolumeType BuyQty, BuyQtyFrozen, TodayBuyQty, TodayBuyQtyFrozen;
+    QMap<QString, stSelfPosi>::iterator iterPosi;
+
+    TradeInfo & tf = tradeInfoLst[currentAccout];
+    // 多仓
+    if((iterPosi = tf.longPosis.find(pInputOrder->InstrumentID)) == tf.longPosis.end()){
+        stSelfPosi stPosi={0};
+        strcpy(stPosi.InstrumentID,pInputOrder->InstrumentID);
+        stPosi.BSFlag = THOST_FTDC_PD_Long;
+        tf.longPosis[QString(stPosi.InstrumentID)]=stPosi;
+        iterPosi= tf.longPosis.find(pInputOrder->InstrumentID);
+    }
+    BuyQty = iterPosi.value().Qty;
+    BuyQtyFrozen = iterPosi.value().QtyFrozen;
+    TodayBuyQty = iterPosi.value().TodayQty;
+    TodayBuyQtyFrozen = iterPosi.value().TodayQtyFrozen;
+
+    // 空仓
+    if ((iterPosi = tf.shortPosis.find(pInputOrder->InstrumentID)) == tf.shortPosis.end()) {
+        stSelfPosi stPosi = { 0 };
+        strcpy(stPosi.InstrumentID, pInputOrder->InstrumentID);
+        stPosi.BSFlag = THOST_FTDC_PD_Short;
+        tf.shortPosis[QString(stPosi.InstrumentID)] = stPosi;
+        iterPosi = tf.shortPosis.find(pInputOrder->InstrumentID);
+    }
+    SellQty = iterPosi.value().Qty;
+    SellQtyFrozen = iterPosi.value().QtyFrozen;
+    TodaySellQty = iterPosi.value().TodayQty;
+    TodaySellQtyFrozen = iterPosi.value().TodayQtyFrozen;
+
+    qInfo() << "duo: " << BuyQty << BuyQtyFrozen << TodayBuyQty << TodayBuyQtyFrozen
+            << "kong: " << SellQty << SellQtyFrozen << TodaySellQty << TodaySellQtyFrozen;
+
+    if(pInputOrder->Direction==THOST_FTDC_D_Buy){
+        // 买
+
+        if(!strcmp(pInputOrder->ExchangeID,"SHFE") || !strcmp(pInputOrder->ExchangeID,"INE")){
+            // 有平今指令
+
+            //平今仓
+            if(TodaySellQty>TodaySellQtyFrozen){
+                // 有今仓
+                if(pInputOrder->VolumeTotalOriginal>(TodaySellQty-TodaySellQtyFrozen)){
+                    CloseTodayQty=TodaySellQty-TodaySellQtyFrozen;
+                }else{
+                    CloseTodayQty=pInputOrder->VolumeTotalOriginal;
+                }
+            }
+
+            // 平昨仓
+            if(pInputOrder->VolumeTotalOriginal>CloseTodayQty){
+                // 算昨仓
+                if(SellQty-TodaySellQty>SellQtyFrozen-TodaySellQtyFrozen){
+                    // 有昨仓
+                    if(pInputOrder->VolumeTotalOriginal-CloseTodayQty>(SellQty-TodaySellQty)-(SellQtyFrozen-TodaySellQtyFrozen)){
+                        CloseQty=(SellQty-TodaySellQty)-(SellQtyFrozen-TodaySellQtyFrozen);
+                    }else{
+                        CloseQty=pInputOrder->VolumeTotalOriginal-CloseTodayQty;
+                    }
+                }
+            }
+        }else{
+            //无平今指令
+            if(SellQty>SellQtyFrozen){
+                // 有持仓
+                if((pInputOrder->VolumeTotalOriginal)>(SellQty-SellQtyFrozen)){
+                    CloseQty=SellQty-SellQtyFrozen;
+                }else{
+                    CloseQty=pInputOrder->VolumeTotalOriginal;
+                }
+            }
+        }
+
+        //剩余的量作开仓处理
+        if(pInputOrder->VolumeTotalOriginal>(CloseTodayQty+CloseQty))
+            OpenQty=pInputOrder->VolumeTotalOriginal-(CloseTodayQty+CloseQty);
+    }else{
+        // 卖
+        if(!strcmp(pInputOrder->ExchangeID, "SHFE") || !strcmp(pInputOrder->ExchangeID, "INE")){
+            // 有平今指令
+
+            //平今仓
+            if(TodayBuyQty>TodayBuyQtyFrozen){
+                // 有今仓
+                if(pInputOrder->VolumeTotalOriginal>(TodayBuyQty-TodayBuyQtyFrozen)){
+                    CloseTodayQty=TodayBuyQty-TodayBuyQtyFrozen;
+                }else{
+                    CloseTodayQty=pInputOrder->VolumeTotalOriginal;
+                }
+            }
+
+            // 平昨仓
+            if(pInputOrder->VolumeTotalOriginal>CloseTodayQty){
+                // 算昨仓
+                if(BuyQty-TodayBuyQty>BuyQtyFrozen-TodayBuyQtyFrozen){
+                    // 有昨仓
+                    if(pInputOrder->VolumeTotalOriginal-CloseTodayQty>(BuyQty-TodayBuyQty)-(BuyQtyFrozen-TodayBuyQtyFrozen)){
+                        CloseQty=(BuyQty-TodayBuyQty)-(BuyQtyFrozen-TodayBuyQtyFrozen);
+                    }else{
+                        CloseQty=pInputOrder->VolumeTotalOriginal-CloseTodayQty;
+                    }
+                }
+            }
+        }else{
+            //无平今指令
+            if(BuyQty>BuyQtyFrozen){
+                // 有持仓
+                if((pInputOrder->VolumeTotalOriginal)>(BuyQty-BuyQtyFrozen)){
+                    CloseQty=BuyQty-BuyQtyFrozen;
+                }else{
+                    CloseQty=pInputOrder->VolumeTotalOriginal;
+                }
+            }
+        }
+
+        //剩余的量作开仓处理
+        if(pInputOrder->VolumeTotalOriginal>(CloseTodayQty+CloseQty))
+            OpenQty=pInputOrder->VolumeTotalOriginal-(CloseTodayQty+CloseQty);
+    }
+    qInfo() << OpenQty << CloseQty << CloseTodayQty;
+}
+
 // 插入订单
 void CoolSubmit::insertOrder(char bos, double price, int fpoints, int qty)
 {
@@ -941,7 +1068,7 @@ void CoolSubmit::insertOrder(char bos, double price, int fpoints, int qty)
     TradeInfo & ti = tradeInfoLst[currentAccout];
     CThostFtdcInputOrderField pInputOrder;
     ::memset(&pInputOrder,0,sizeof(CThostFtdcInputOrderField));
-    strncpy(pInputOrder.BrokerID, loginW->m_users.BrokerID, sizeof(pInputOrder.BrokerID));
+    strncpy(pInputOrder.BrokerID, loginW->brokerID, sizeof(pInputOrder.BrokerID));
     strncpy(pInputOrder.InvestorID,ti.accountName.toLatin1().data(),sizeof(pInputOrder.InvestorID)); /* 投资者号 */
     strncpy(pInputOrder.InstrumentID, ci->InstrumentID,sizeof(pInputOrder.InstrumentID));     /* 合约号 */
     strncpy(pInputOrder.ExchangeID, ci->ExchangeID,sizeof(pInputOrder.ExchangeID));   /* 交易所号 */   
@@ -959,13 +1086,13 @@ void CoolSubmit::insertOrder(char bos, double price, int fpoints, int qty)
     pInputOrder.ContingentCondition = THOST_FTDC_CC_Immediately;	/* 限价单模式 */
 
     int OpenQty, CloseQty, CloseTodayQty;
-    getOrderOffsetFlag(&pInputOrder, OpenQty, CloseQty, CloseTodayQty);
+    getOrderOffsetFlag1(&pInputOrder, OpenQty, CloseQty, CloseTodayQty);
     if(CloseTodayQty > 0){
         int nRequestID = CreateNewRequestID();
         sprintf(pInputOrder.OrderRef, "%12i", nRequestID);
         pInputOrder.CombOffsetFlag[0] = THOST_FTDC_OF_CloseToday;
         pInputOrder.VolumeTotalOriginal = CloseTodayQty;
-        ti.api->ReqOrderInsert(&pInputOrder, nRequestID);
+        OrderInsert(&pInputOrder, THOST_FTDC_OF_CloseToday, CloseTodayQty, nRequestID);
     }
 
     if(CloseQty > 0){
@@ -979,7 +1106,7 @@ void CoolSubmit::insertOrder(char bos, double price, int fpoints, int qty)
             pInputOrder.CombOffsetFlag[0] = THOST_FTDC_OF_Close;
             pInputOrder.VolumeTotalOriginal = CloseQty;
         }
-        ti.api->ReqOrderInsert(&pInputOrder, nRequestID);
+        OrderInsert(&pInputOrder, pInputOrder.CombOffsetFlag[0], CloseQty, nRequestID);
     }
 
     if(OpenQty > 0){
@@ -987,9 +1114,110 @@ void CoolSubmit::insertOrder(char bos, double price, int fpoints, int qty)
         sprintf(pInputOrder.OrderRef, "%12i", nRequestID);
         pInputOrder.CombOffsetFlag[0] = THOST_FTDC_OF_Open;
         pInputOrder.VolumeTotalOriginal = OpenQty;
-        ti.api->ReqOrderInsert(&pInputOrder, nRequestID);
+        OrderInsert(&pInputOrder, THOST_FTDC_OF_Open, OpenQty, nRequestID);
     }
 //    if(ti.api->ReqOrderInsert(&pInputOrder, nRequestID) == 0);
+}
+
+void CoolSubmit::OrderInsert(CThostFtdcInputOrderField *pInputOrder, uchar OCFlag, int Qty,int nRequestID)
+{
+    TradeInfo & tf = tradeInfoLst[currentAccout];
+
+    CThostFtdcOrderField stOrder = {0};
+    strcpy(stOrder.BrokerID,pInputOrder->BrokerID);
+    strcpy(stOrder.InvestorID,pInputOrder->InvestorID);
+    strcpy(stOrder.InstrumentID,pInputOrder->InstrumentID);
+    strcpy(stOrder.ExchangeID,pInputOrder->ExchangeID);
+    strcpy(stOrder.OrderRef,pInputOrder->OrderRef);
+    stOrder.Direction = pInputOrder->Direction;
+    stOrder.CombOffsetFlag[0]=OCFlag;
+    stOrder.CombHedgeFlag[0]=pInputOrder->CombHedgeFlag[0];
+    stOrder.VolumeTotalOriginal=Qty;
+    stOrder.VolumeTotal=Qty;
+    stOrder.LimitPrice=pInputOrder->LimitPrice;
+    stOrder.OrderPriceType = pInputOrder->OrderPriceType;   /* 限价 */
+    stOrder.TimeCondition = pInputOrder->TimeCondition;
+    stOrder.VolumeCondition = pInputOrder->VolumeCondition;
+    stOrder.MinVolume = 1;
+    stOrder.ForceCloseReason = pInputOrder->ForceCloseReason;
+    stOrder.ContingentCondition = pInputOrder->ContingentCondition;
+    stOrder.OrderStatus= THOST_FTDC_OST_NoTradeQueueing;
+    QString orderKey = QString("%1.%2.%3").arg(loginW->loginRes.FrontID).arg(loginW->loginRes.SessionID).arg(stOrder.OrderRef);
+    tf.orderLst[orderKey]=&stOrder;
+
+    // 如果是平仓单，则冻结相应持仓
+    if(stOrder.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+        QMap<QString, stSelfPosi>::iterator iterPosi;
+
+        if(stOrder.Direction==THOST_FTDC_D_Buy){
+            iterPosi = tf.shortPosis.find(stOrder.InstrumentID);
+            if (iterPosi == tf.shortPosis.end()) {
+                stSelfPosi stPosi = { 0 };
+                strcpy(stPosi.InstrumentID, stOrder.InstrumentID);
+                stPosi.BSFlag = THOST_FTDC_PD_Short;
+                tf.shortPosis[stPosi.InstrumentID] = stPosi;
+                iterPosi = tf.shortPosis.find(stOrder.InstrumentID);
+            }
+            if(stOrder.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday){
+                iterPosi.value().TodayQtyFrozen+=stOrder.VolumeTotalOriginal;
+            }
+            iterPosi.value().QtyFrozen+=stOrder.VolumeTotalOriginal;
+        }else{
+            iterPosi = tf.longPosis.find(stOrder.InstrumentID);
+            if (iterPosi == tf.longPosis.end()) {
+                stSelfPosi stPosi = { 0 };
+                strcpy(stPosi.InstrumentID, stOrder.InstrumentID);
+                stPosi.BSFlag = THOST_FTDC_PD_Long;
+                tf.longPosis[stPosi.InstrumentID] = stPosi;
+                iterPosi = tf.longPosis.find(stOrder.InstrumentID);
+            }
+            if(stOrder.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday){
+                iterPosi.value().TodayQtyFrozen+=stOrder.VolumeTotalOriginal;
+            }
+            iterPosi.value().QtyFrozen+=stOrder.VolumeTotalOriginal;
+        }
+    }
+
+    int ret=tf.api->ReqOrderInsert(pInputOrder, nRequestID);
+    if(ret<0){
+        tf.orderLst[orderKey]->OrderStatus=THOST_FTDC_OST_Canceled;
+        strcpy(tf.orderLst[orderKey]->StatusMsg,"交易通道未就绪");
+        stOrder.OrderStatus=THOST_FTDC_OST_Canceled;
+        strcpy(stOrder.StatusMsg,"交易通道未就绪");
+
+        // 如果是平仓单，则释放冻结持仓
+        if(stOrder.CombOffsetFlag[0]!=THOST_FTDC_OF_Open){
+            QMap<QString, stSelfPosi>::iterator iterPosi;
+
+            if(stOrder.Direction==THOST_FTDC_D_Buy){
+                iterPosi = tf.shortPosis.find(stOrder.InstrumentID);
+                if (iterPosi == tf.shortPosis.end()) {
+                    stSelfPosi stPosi = { 0 };
+                    strcpy(stPosi.InstrumentID, stOrder.InstrumentID);
+                    stPosi.BSFlag = THOST_FTDC_PD_Short;
+                    tf.shortPosis[stPosi.InstrumentID] = stPosi;
+                    iterPosi = tf.shortPosis.find(stOrder.InstrumentID);
+                }
+                if(stOrder.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday){
+                    iterPosi.value().TodayQtyFrozen-=stOrder.VolumeTotalOriginal;
+                }
+                iterPosi.value().QtyFrozen-=stOrder.VolumeTotalOriginal;
+            }else{
+                iterPosi = tf.longPosis.find(stOrder.InstrumentID);
+                if (iterPosi == tf.longPosis.end()) {
+                    stSelfPosi stPosi = { 0 };
+                    strcpy(stPosi.InstrumentID, stOrder.InstrumentID);
+                    stPosi.BSFlag = THOST_FTDC_PD_Long;
+                    tf.longPosis[stPosi.InstrumentID] = stPosi;
+                    iterPosi = tf.longPosis.find(stOrder.InstrumentID);
+                }
+                if(stOrder.CombOffsetFlag[0]==THOST_FTDC_OF_CloseToday){
+                    iterPosi.value().TodayQtyFrozen-=stOrder.VolumeTotalOriginal;
+                }
+                iterPosi.value().QtyFrozen-=stOrder.VolumeTotalOriginal;
+            }
+        }
+    }
 }
 
 // 插入止损订单
@@ -1101,22 +1329,37 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
         ::memcpy(sQuot, cQuot, sizeof(CThostFtdcDepthMarketDataField));
     }
     TradeInfo & tf = tradeInfoLst[currentAccout];
+//    QMap<QString,PosiPloy *>::const_iterator iter = tf.posiLst.find(QString::fromLocal8Bit(ci->InstrumentID));
+//    PosiPloy * pploy = iter != tf.posiLst.end() ? iter.value():NULL;
+//    QList<CThostFtdcInvestorPositionField *> posi;
+//    if(pploy)
+//        posi = pploy->posi;
+//    CThostFtdcInvestorPositionField sPosiBuy;
+//    CThostFtdcInvestorPositionField sPosiSell;
+//    ::memset(&sPosiBuy, 0 ,sizeof(CThostFtdcInvestorPositionField));
+//    ::memset(&sPosiSell, 0 ,sizeof(CThostFtdcInvestorPositionField));
+//    for(int index = 0; index < posi.size(); index++)
+//    {
+//        if(posi[index]->PosiDirection == THOST_FTDC_PD_Long)
+//            ::memcpy(&sPosiBuy, posi[index] ,sizeof(CThostFtdcInvestorPositionField));
+//        else if(posi[index]->PosiDirection == THOST_FTDC_PD_Short)
+//            ::memcpy(&sPosiSell, posi[index] ,sizeof(CThostFtdcInvestorPositionField));
+//    }
     QMap<QString,PosiPloy *>::const_iterator iter = tf.posiLst.find(QString::fromLocal8Bit(ci->InstrumentID));
     PosiPloy * pploy = iter != tf.posiLst.end() ? iter.value():NULL;
     QList<CThostFtdcInvestorPositionField *> posi;
     if(pploy)
         posi = pploy->posi;
-    CThostFtdcInvestorPositionField sPosiBuy;
-    CThostFtdcInvestorPositionField sPosiSell;
-    ::memset(&sPosiBuy, 0 ,sizeof(CThostFtdcInvestorPositionField));
-    ::memset(&sPosiSell, 0 ,sizeof(CThostFtdcInvestorPositionField));
-    for(int index = 0; index < posi.size(); index++)
-    {
-        if(posi[index]->PosiDirection == THOST_FTDC_PD_Long)
-            ::memcpy(&sPosiBuy, posi[index] ,sizeof(CThostFtdcInvestorPositionField));
-        else if(posi[index]->PosiDirection == THOST_FTDC_PD_Short)
-            ::memcpy(&sPosiSell, posi[index] ,sizeof(CThostFtdcInvestorPositionField));
-    }
+
+    stSelfPosi sPosiBuy = {0};
+    stSelfPosi sPosiSell = {0};
+    QMap<QString, stSelfPosi>::iterator mapIter = tf.longPosis.find(QString::fromLocal8Bit(ci->InstrumentID));
+    if(mapIter != tf.longPosis.end())
+        sPosiBuy = mapIter.value();
+    mapIter = tf.shortPosis.find(QString::fromLocal8Bit(ci->InstrumentID));
+    if(mapIter != tf.shortPosis.end())
+        sPosiSell = mapIter.value();
+
     double dis = 0; // 涨幅
     double disper = 0; // 涨幅百分比
     if(cQuot->PreSettlementPrice > 0.0001) // 昨结算价
@@ -1178,32 +1421,58 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
     QString vnames[6] = {QString::fromLocal8Bit(ci->InstrumentID).append(",").append(QString::fromLocal8Bit(ci->InstrumentName))
         ,"0","0","0",QString::number(tf.fund->Available,'f',pScale),currentAccout};
 
-    double BuyPrice = sPosiBuy.Position == 0 ? 0.00:sPosiBuy.PositionCost/(sPosiBuy.Position*1.00f)/(ci->VolumeMultiple*1.00f);
-    double SellPrice = sPosiSell.Position == 0 ? 0.00:sPosiSell.PositionCost/(sPosiSell.Position*1.00f)/(ci->VolumeMultiple*1.00f);
-    if(sPosiSell.Position == 0)
+//    double BuyPrice = sPosiBuy.Position == 0 ? 0.00:sPosiBuy.PositionCost/(sPosiBuy.Position*1.00f)/(ci->VolumeMultiple*1.00f);
+//    double SellPrice = sPosiSell.Position == 0 ? 0.00:sPosiSell.PositionCost/(sPosiSell.Position*1.00f)/(ci->VolumeMultiple*1.00f);
+//    if(sPosiSell.Position == 0)
+//    {
+//        qty = sPosiBuy.Position;
+//        vnames[1] = QString::number(qty);
+//        vnames[2] = QString::number(BuyPrice,'f',pScale);
+//    }
+//    else if(sPosiBuy.Position == 0)
+//    {
+//        qty = -(int)sPosiSell.Position;
+//        vnames[1] = QString::number(qty);
+//        vnames[2] = QString::number(SellPrice,'f',pScale);
+//    }
+//    else
+//    {
+//        qty = sPosiBuy.Position-sPosiSell.Position;
+//        QString cc = QString::number(qty).append("(").append(QString::number(sPosiBuy.Position))
+//                .append("/-").append(QString::number(sPosiSell.Position)).append(")");
+//        vnames[1] = cc;
+//        if(qty >0)
+//            vnames[2] = QString::number(BuyPrice,'f',pScale);
+//        else
+//            vnames[2] = QString::number(SellPrice,'f',pScale);
+//    }
+//    double yk = (cQuot->LastPrice-BuyPrice)*ci->VolumeMultiple*sPosiBuy.Position+(SellPrice-cQuot->LastPrice)*ci->VolumeMultiple*sPosiSell.Position;
+    double BuyPrice = sPosiBuy.Qty == 0 ? 0.00:sPosiBuy.Price;
+    double SellPrice = sPosiSell.Qty == 0 ? 0.00:sPosiSell.Price;
+    if(sPosiSell.Qty == 0)
     {
-        qty = sPosiBuy.Position;
+        qty = sPosiBuy.Qty;
         vnames[1] = QString::number(qty);
         vnames[2] = QString::number(BuyPrice,'f',pScale);
     }
-    else if(sPosiBuy.Position == 0)
+    else if(sPosiBuy.Qty == 0)
     {
-        qty = -(int)sPosiSell.Position;
+        qty = -(int)sPosiSell.Qty;
         vnames[1] = QString::number(qty);
         vnames[2] = QString::number(SellPrice,'f',pScale);
     }
     else
     {
-        qty = sPosiBuy.Position-sPosiSell.Position;
-        QString cc = QString::number(qty).append("(").append(QString::number(sPosiBuy.Position))
-                .append("/-").append(QString::number(sPosiSell.Position)).append(")");
+        qty = sPosiBuy.Qty-sPosiSell.Qty;
+        QString cc = QString::number(qty).append("(").append(QString::number(sPosiBuy.Qty))
+                .append("/-").append(QString::number(sPosiSell.Qty)).append(")");
         vnames[1] = cc;
         if(qty >0)
             vnames[2] = QString::number(BuyPrice,'f',pScale);
         else
             vnames[2] = QString::number(SellPrice,'f',pScale);
     }
-    double yk = (cQuot->LastPrice-BuyPrice)*ci->VolumeMultiple*sPosiBuy.Position+(SellPrice-cQuot->LastPrice)*ci->VolumeMultiple*sPosiSell.Position;
+    double yk = (cQuot->LastPrice-BuyPrice)*ci->VolumeMultiple*sPosiBuy.Qty+(SellPrice-cQuot->LastPrice)*ci->VolumeMultiple*sPosiSell.Qty;
     vnames[3] = QString::number(yk,'f',pScale);
     int lPix = 0;
     int rPix = 0;
@@ -1360,13 +1629,13 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
     painter.fillRect(QRect(marL+orderW+11,sellH5,6,2),QColor(10, 120, 171));
     if(qty > 0)// 买持仓
     {
-        int qtyDix = (sPosiBuy.OpenAmount/(sPosiBuy.OpenVolume*1.00f))/minMove;
+        int qtyDix = (sPosiBuy.Price)/minMove;
         int qtyH = linPix*1+(maxWheelSteps-qtyDix)*(pH-1*linPix)/abs(maxWheelSteps-minWheelSteps);
         painter.fillRect(QRect(marL+orderW,qtyH,srcollW,2),QColor(210, 54, 54));
     }
     if(qty < 0)// 卖持仓
     {
-        int qtyDix = (sPosiSell.OpenAmount/(sPosiSell.OpenVolume*1.00f))/minMove;
+        int qtyDix = (sPosiSell.Price)/minMove;
         int qtyH = linPix*1+(maxWheelSteps-qtyDix)*(pH-1*linPix)/abs(maxWheelSteps-minWheelSteps);
         painter.fillRect(QRect(marL+orderW,qtyH,srcollW,2),QColor(13, 150, 214));
     }
@@ -1388,14 +1657,14 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
         painter.drawLine(0, linH, pW-marR, linH);
         if(qty > 0)
         {
-            if(tPrice - (sPosiBuy.OpenAmount/(sPosiBuy.OpenVolume*1.00f)) <ci->PriceTick-0.000005 && tPrice - (sPosiBuy.OpenAmount/(sPosiBuy.OpenVolume*1.00f)) > -0.000005)
+            if(tPrice - (sPosiBuy.Price) <ci->PriceTick-0.000005 && tPrice - (sPosiBuy.Price) > -0.000005)
             {
                 painter.fillRect(QRect(priceW,linH-linPix,orderW*oPix[2]/100-1,linPix), QColor(13,150,214));
             }
         }
         else
         {
-            if(tPrice - (sPosiSell.OpenAmount/(sPosiSell.OpenVolume*1.00f)) <ci->PriceTick-0.000005 && tPrice - (sPosiSell.OpenAmount/(sPosiSell.OpenVolume*1.00f)) > -0.000005)
+            if(tPrice - (sPosiSell.Price) <ci->PriceTick-0.000005 && tPrice - (sPosiSell.Price) > -0.000005)
             {
                 painter.fillRect(QRect(priceW,linH-linPix,orderW*oPix[2]/100-1,linPix), QColor(210,54,54));
             }
@@ -1585,6 +1854,7 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
                 double steps = ( - iti->LimitPrice)/minMove;
                 int oLin  = 0;
                 double dis = steps-(int)steps;
+         //       qInfo() << "steps: " << steps << dis;
                 if(dis > 0)
                 {
                     if(dis < 0.5)
@@ -1607,6 +1877,7 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
                         oLin = (int)steps -1 + 1 +(wheelSteps+linNum/2);
                     }
                 }
+         //       qInfo() << "steps: " << steps << dis << oLin;
                 if(oLin < 1)
                     continue;
                 int qty = iti->VolumeTotalOriginal;

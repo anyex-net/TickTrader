@@ -205,6 +205,11 @@
         <string>7*24</string>
        </property>
       </item>
+      <item>
+       <property name="text">
+        <string>南华仿真</string>
+       </property>
+      </item>
      </widget>
      <widget class="QLabel" name="label_3">
       <property name="geometry">

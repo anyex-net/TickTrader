@@ -54,7 +54,7 @@ loginWin::~loginWin()
 void loginWin::getUserInfos()
 {
     memset(&m_users, 0, sizeof(m_users));
-    memcpy(m_users.BrokerID, "9999", sizeof(m_users.BrokerID));
+
     QSettings cfgini("./config.ini", QSettings::IniFormat);
     cfgini.beginGroup("userInfo");
     QString str = cfgini.value("account").toString();
@@ -68,13 +68,27 @@ void loginWin::getUserInfos()
 
     ServerAddr addr;
     cfgini.beginGroup("serverAddress1");
+    addr.BrokerID = cfgini.value("brokerID").toString();
     addr.tradeServ = cfgini.value("trade").toString();
     addr.marketServ = cfgini.value("market").toString();
+    addr.authCode = cfgini.value("authCode").toString();
+    addr.appID = cfgini.value("appID").toString();
     cfgini.endGroup();
     m_listAddr.append(addr);
     cfgini.beginGroup("serverAddress2");
+    addr.BrokerID = cfgini.value("brokerID").toString();
     addr.tradeServ = cfgini.value("trade").toString();
     addr.marketServ = cfgini.value("market").toString();
+    addr.authCode = cfgini.value("authCode").toString();
+    addr.appID = cfgini.value("appID").toString();
+    cfgini.endGroup();
+    m_listAddr.append(addr);
+    cfgini.beginGroup("serverAddress3");
+    addr.BrokerID = cfgini.value("brokerID").toString();
+    addr.tradeServ = cfgini.value("trade").toString();
+    addr.marketServ = cfgini.value("market").toString();
+    addr.authCode = cfgini.value("authCode").toString();
+    addr.appID = cfgini.value("appID").toString();
     cfgini.endGroup();
     m_listAddr.append(addr);
 }
@@ -88,6 +102,9 @@ void loginWin::login_clicked()
     str = ui.lineEdit->text();
     memcpy(password, str.toStdString().c_str(), sizeof(password));
     serverAddrIndex = ui.servBox->currentIndex();
+    memcpy(brokerID, (char*)m_listAddr.at(serverAddrIndex).BrokerID.toStdString().c_str(), sizeof(brokerID));
+    memcpy(authCode, (char*)m_listAddr.at(serverAddrIndex).authCode.toStdString().c_str(), sizeof(authCode));
+    memcpy(appID, (char*)m_listAddr.at(serverAddrIndex).appID.toStdString().c_str(), sizeof(appID));
 
     if(pTraderApi == NULL)
     {

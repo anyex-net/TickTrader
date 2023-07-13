@@ -66,7 +66,7 @@ void changePassword::changePasswordEvent() {
     CThostFtdcUserPasswordUpdateField pChangeOrder;
     ::memset(&pChangeOrder, 0,sizeof(CThostFtdcUserPasswordUpdateField));
 	int nRequestID = CreateNewRequestID();
-    strncpy(pChangeOrder.BrokerID,loginW->m_users.BrokerID, sizeof(pChangeOrder.BrokerID));
+    strncpy(pChangeOrder.BrokerID,loginW->brokerID, sizeof(pChangeOrder.BrokerID));
     strncpy(pChangeOrder.UserID,loginW->userName, sizeof(pChangeOrder.UserID));
     strncpy(pChangeOrder.OldPassword, oldPassword, sizeof(pChangeOrder.OldPassword));
     strncpy(pChangeOrder.NewPassword, newPassword,sizeof(pChangeOrder.NewPassword));

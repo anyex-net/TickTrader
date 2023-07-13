@@ -17,6 +17,29 @@
 #define DW QApplication::desktop()->screenGeometry().width()
 #define DH QApplication::desktop()->screenGeometry().height()
 
+/* 持仓 */
+struct stSelfPosi
+{
+    TThostFtdcExchangeIDType ExchangeID;	/* 交易所号 */
+    TThostFtdcInstrumentIDType InstrumentID;	/* 合约号 */
+    TThostFtdcPosiDirectionType BSFlag;	/* 多空标志 */
+    TThostFtdcMoneyType Price;	/* 均价 */
+    TThostFtdcVolumeType Qty;	/* 数量 */
+    TThostFtdcVolumeType TodayQty;	/* 今仓量 */
+    TThostFtdcVolumeType QtyFrozen;	/* 冻结量 */
+    TThostFtdcVolumeType TodayQtyFrozen;	/* 今仓冻结量 */
+    TThostFtdcVolumeType PreQty;	/* 上日数量 */
+    TThostFtdcMoneyType PrePrice;	/* 上日均价 */
+    TThostFtdcMoneyType ClosedPL;	/* 平仓盈亏 */
+    TThostFtdcMoneyType FloatingPL;	/* 浮动盈亏 */
+    TThostFtdcMoneyType Margin;	/* 占用保证金 */
+    TThostFtdcMoneyType Fee;	/* 手续费 */
+    TThostFtdcMoneyType FrozenMargin;	/* 冻结保证金 */
+    TThostFtdcMoneyType FeeFrozen;	/* 冻结手续费 */
+    TThostFtdcMoneyType Cost;	/* 成本 */
+    TThostFtdcMoneyType PreCost;	/* 上日成本 */
+};
+
 typedef struct
 {
     QList<CThostFtdcInvestorPositionField *> posi;
@@ -38,6 +61,8 @@ typedef struct
     QMap<QString,PosiPloy *> posiLst;// 该账户对应的持仓信息 KEY:合约号
     QMap<QString,CThostFtdcTradeField *> tradeLst;// 该账户对应的成交信息 KEY:成交号
     QMap<QString, CThostFtdcOrderField *> orderLst;// 该账户对应的订单信息 KEY:订单号
+    QMap<QString, stSelfPosi> longPosis;
+    QMap<QString, stSelfPosi> shortPosis;
 }TradeInfo;
 
 typedef struct {
@@ -115,9 +140,10 @@ public:
     // 添加订单消息
     void orderEmit(CTradeSpiImp * t, CThostFtdcOrderField * pOrder, bool bLast = false, bool push = false);
     // 添加成交消息
-    void tradeEmit(CTradeSpiImp * t, CThostFtdcTradeField * pTrade, bool bLast = false);
+    void tradeEmit(CTradeSpiImp * t, CThostFtdcTradeField * pTrade, bool bLast = false, bool push = false);
     // 订单消息推送
     void orderMessageEmit(QString mes);
+    void orderInsertRsp(QString orderRef);
     // 订单管理界面
     OrderManage * omWidget;
     // 持仓管理界面
@@ -156,6 +182,8 @@ private:
     QTimer m_timerFreshTips;
     QList<int> m_neddReqPos;
     bool    m_reqPosEndFlag;
+    bool    m_IsInitEnd;
+    std::map<std::string, std::string> mOrderIndexByExchangeIDAndOrderSysID;
 public slots:
     void onTimerReqPos();
     void slot_showOrderWin(TThostFtdcInstrumentIDType m_strInstr);
@@ -177,9 +205,10 @@ public slots:
     // 添加账户资金记录
     void addFunds(CTradeSpiImp * t, CThostFtdcTradingAccountField * pFund);
     // 添加成交记录
-    void addTrade(CTradeSpiImp * t, CThostFtdcTradeField * pTrade, bool bLast);
+    void addTrade(CTradeSpiImp * t, CThostFtdcTradeField * pTrade, bool bLast, bool push);
     // 撤单成功推送
     void doCancelOrder(CThostFtdcInputOrderActionField *pOrderCancelRsp);
+    void onOrderInsetRspMsg(QString orderRef);
     // 交易账户连接成功
     void doTradeConnSec(CTradeSpiImp * t);
     // 订单消息处理
@@ -220,11 +249,12 @@ signals:
     // 收到资金推送
     void getFundPush(CTradeSpiImp * t,CThostFtdcTradingAccountField * pFund);
     // 收到成交推送
-    void getTradePush(CTradeSpiImp * t,CThostFtdcTradeField * pTrade, bool bLast);
+    void getTradePush(CTradeSpiImp * t,CThostFtdcTradeField * pTrade, bool bLast, bool push);
     // 撤单成功推送
     void cancelOrder(CThostFtdcInputOrderActionField *pOrderCancelRsp);
     // 订单处理rsp消息
     void orderMessage(QString mes);
+    void orderInsertRspPush(QString orderRef);
     // 盈亏变化
     void floating();
 };

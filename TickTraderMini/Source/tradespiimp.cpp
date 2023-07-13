@@ -2,6 +2,7 @@
 #include "tradewidget.h"
 #include <QDebug>
 #include <QThread>
+#include "loginWin.h"
 
 extern loginWin *loginW;
 extern TradeWidget *g_tw;
@@ -33,17 +34,29 @@ void CTradeSpiImp::OnFrontConnected()
     qInfo() << "CTradeSpiImp::OnFrontConnected";
     if(!loginFlags)
     {
-        CThostFtdcReqUserLoginField login = {0};
-        strncpy( login.BrokerID, loginW->m_users.BrokerID, sizeof(login.BrokerID));
-        strncpy( login.UserID, loginW->userName, sizeof(login.UserID));
-        strncpy( login.Password, loginW->password, sizeof(login.Password));
-        strcpy( login.UserProductInfo, "TICKTRADER" );
-        strcpy( login.MacAddress, "fe80::75ef:97de:2366:e490" );
-        strcpy( login.ClientIPAddress, "10.150.1.23" );
+        int nRequestIDs = CreateNewRequestID();
+        CThostFtdcReqAuthenticateField reqInfo = {0};
+        strncpy( reqInfo.BrokerID, loginW->brokerID, sizeof(reqInfo.BrokerID));
+        strncpy( reqInfo.UserID, loginW->userName, sizeof(reqInfo.UserID));
+        strncpy( reqInfo.UserProductInfo, "TickTrader", sizeof(reqInfo.UserProductInfo));
+        strncpy( reqInfo.AuthCode, loginW->authCode, sizeof(reqInfo.AuthCode));
+        strncpy( reqInfo.AppID, loginW->appID, sizeof(reqInfo.AppID));
+        int ret = m_pTradeApi->ReqAuthenticate(&reqInfo, nRequestIDs);
+        qInfo() << "ReqAuthenticate: " << ret << reqInfo.BrokerID << reqInfo.UserID << reqInfo.UserProductInfo
+                << reqInfo.AuthCode << reqInfo.AppID;
 
-        quint32 nRequestID = CreateNewRequestID();
-        int ret = m_pTradeApi->ReqUserLogin(&login, nRequestID);
-        qInfo() << "ReqUserLogin ret: " << ret;
+//        QThread::msleep(2000);
+//        CThostFtdcReqUserLoginField login = {0};
+//        strncpy( login.BrokerID, loginW->brokerID, sizeof(login.BrokerID));
+//        strncpy( login.UserID, loginW->userName, sizeof(login.UserID));
+//        strncpy( login.Password, loginW->password, sizeof(login.Password));
+//        strcpy( login.UserProductInfo, "TickTrader" );
+//        strcpy( login.MacAddress, "fe80:75ef:97de:2366:e490" );
+//        strcpy( login.ClientIPAddress, "10.150.1.23" );
+
+//        int nRequestID = CreateNewRequestID();
+//        ret = m_pTradeApi->ReqUserLogin(&login, nRequestID);
+//        qInfo() << "ReqUserLogin ret: " << ret;
     }
 }
 
@@ -54,7 +67,7 @@ void CTradeSpiImp::OnFrontDisconnected()
 
 void CTradeSpiImp::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-    qInfo() << "CTradeSpiImp::OnRspUserLogin" << pRspInfo->ErrorID << pRspInfo->ErrorMsg;
+    qInfo() << "CTradeSpiImp::OnRspUserLogin" << pRspInfo->ErrorID << QString::fromLocal8Bit(pRspInfo->ErrorMsg);
     if(pRspInfo && pRspInfo->ErrorID != 0)
     {
         loginW->loginFailed(pRspInfo->ErrorID, QString::fromLocal8Bit(pRspInfo->ErrorMsg));
@@ -69,6 +82,7 @@ void CTradeSpiImp::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin, CT
         CThostFtdcQryInstrumentField reqInfo = {0};
         m_pTradeApi->ReqQryInstrument(&reqInfo, nRequestIDs);
     }
+
     if(!loginW->isHidden())
         emit loginW->showProcess(ShowProc_loginOk, true);
 }
@@ -84,8 +98,45 @@ void CTradeSpiImp::OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout, CThos
     loginW->logutSecced();
 }
 
+void CTradeSpiImp::OnRspAuthenticate(CThostFtdcRspAuthenticateField *pRspAuthenticateField, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+{
+    qInfo() << "CTradeSpiImp::OnRspAuthenticate" << pRspInfo->ErrorID << QString::fromLocal8Bit(pRspInfo->ErrorMsg);
+    if(pRspInfo && pRspInfo->ErrorID != 0)
+    {
+        loginW->loginFailed(pRspInfo->ErrorID, QString::fromLocal8Bit(pRspInfo->ErrorMsg));
+        return;
+    }
+    if(pRspAuthenticateField)
+    {
+        //change password
+//        int nRequestID = CreateNewRequestID();
+//        CThostFtdcUserPasswordUpdateField pwd = {0};
+//        strncpy( pwd.BrokerID, loginW->brokerID, sizeof(pwd.BrokerID));
+//        strncpy( pwd.UserID, loginW->userName, sizeof(pwd.UserID));
+//        strncpy( pwd.OldPassword, loginW->password, sizeof(pwd.OldPassword));
+//        strncpy( pwd.NewPassword, "ticktrader#123", sizeof(pwd.NewPassword));
+//        int ret = m_pTradeApi->ReqUserPasswordUpdate(&pwd, nRequestID);
+//        qInfo() << "ReqUserPasswordUpdate ret: " << ret << pwd.BrokerID << pwd.UserID << pwd.OldPassword << pwd.NewPassword;
+//        return;
+        //
+
+        CThostFtdcReqUserLoginField login = {0};
+        strncpy( login.BrokerID, loginW->brokerID, sizeof(login.BrokerID));
+        strncpy( login.UserID, loginW->userName, sizeof(login.UserID));
+        strncpy( login.Password, loginW->password, sizeof(login.Password));
+        strcpy( login.UserProductInfo, "TickTrader" );
+        strcpy( login.MacAddress, "fe80:75ef:97de:2366:e490" );
+        strcpy( login.ClientIPAddress, "10.150.1.23" );
+
+        int nRequestID1 = CreateNewRequestID();
+        int ret1 = m_pTradeApi->ReqUserLogin(&login, nRequestID1);
+        qInfo() << "ReqUserLogin ret: " << ret1;
+    }
+}
+
 void CTradeSpiImp::OnRspUserPasswordUpdate(CThostFtdcUserPasswordUpdateField *pUserPasswordUpdate, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
+    qInfo() << "CTradeSpiImp::OnRspUserPasswordUpdate" << pRspInfo->ErrorID << QString::fromLocal8Bit(pRspInfo->ErrorMsg);
     if(!pUserPasswordUpdate)
         return;
     if(pRspInfo && pRspInfo->ErrorID == 0)
@@ -101,7 +152,9 @@ void CTradeSpiImp::OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CTho
     if(pRspInfo && pRspInfo->ErrorID)
     {
         qInfo() << "OnRspOrderInsert: " << pRspInfo->ErrorID << QString::fromLocal8Bit(pRspInfo->ErrorMsg);
+        QString orderKey = QString("%1.%2.%3").arg(loginW->loginRes.FrontID).arg(loginW->loginRes.SessionID).arg(pInputOrder->OrderRef);
         g_tw->orderMessageEmit(QString::fromLocal8Bit(pRspInfo->ErrorMsg));
+        g_tw->orderInsertRsp(orderKey);
     }
 }
 
@@ -119,7 +172,7 @@ void CTradeSpiImp::OnRtnTrade(CThostFtdcTradeField *pTrade)
 {
     if(pTrade)
     {
-        g_tw->tradeEmit(this, pTrade, false);
+        g_tw->tradeEmit(this, pTrade, false, true);
     }
 }
 
@@ -238,22 +291,22 @@ void CTradeSpiImp::OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, CT
         g_tw->instrEmit(this);
         loginW->loginSucceed();
 
-//        CThostFtdcSettlementInfoConfirmField sicf = { 0 };
-//        memcpy( sicf.BrokerID, loginW->m_users.BrokerID, sizeof( sicf.BrokerID ) );
-//        memcpy( sicf.InvestorID, loginW->userName, sizeof( sicf.InvestorID ) );
-//        strcpy( sicf.ConfirmDate, m_pTradeApi->GetTradingDay( ) );
+        CThostFtdcSettlementInfoConfirmField sicf = { 0 };
+        memcpy( sicf.BrokerID, loginW->brokerID, sizeof( sicf.BrokerID ) );
+        memcpy( sicf.InvestorID, loginW->userName, sizeof( sicf.InvestorID ) );
+        strcpy( sicf.ConfirmDate, m_pTradeApi->GetTradingDay( ) );
 
-//        for( ; ; )
-//        {
-//            int iRequestID = CreateNewRequestID( );
-//            int iResult = m_pTradeApi->ReqSettlementInfoConfirm( &sicf, iRequestID );
-//            if(iResult == -2 || iResult == -3)
-//                QThread::msleep(100);
-//            else
-//                break;
-//        }
+        for( ; ; )
+        {
+            int iRequestID = CreateNewRequestID( );
+            int iResult = m_pTradeApi->ReqSettlementInfoConfirm( &sicf, iRequestID );
+            if(iResult == -2 || iResult == -3)
+                QThread::msleep(100);
+            else
+                break;
+        }
 
-//        QThread::msleep(1000);
+        QThread::msleep(1000);
 
         for( ; ;)
         {

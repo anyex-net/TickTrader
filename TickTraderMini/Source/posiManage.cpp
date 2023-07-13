@@ -586,7 +586,7 @@ void PosiManage::closePosition() {
     if (currentPosi->PosiDirection == THOST_FTDC_PD_Long) {
 		// 多仓, 多平
         ::memset(&sellOrder, 0, sizeof(CThostFtdcInputOrderField));
-        strncpy(sellOrder.BrokerID, loginW->m_users.BrokerID, sizeof(sellOrder.BrokerID));
+        strncpy(sellOrder.BrokerID, loginW->brokerID, sizeof(sellOrder.BrokerID));
 		strncpy(sellOrder.InvestorID, loginW->userName,sizeof(sellOrder.InvestorID));						// 投资者号
 		strncpy(sellOrder.InstrumentID, cI->InstrumentID,sizeof(sellOrder.InstrumentID));						// 合约号
 		strncpy(sellOrder.ExchangeID, cI->ExchangeID,sizeof(sellOrder.ExchangeID));							// 交易所号
@@ -607,7 +607,7 @@ void PosiManage::closePosition() {
     if (currentPosi->PosiDirection == THOST_FTDC_PD_Short) {
 		// 空仓, 空平
         ::memset(&buyOrder, 0, sizeof(CThostFtdcInputOrderField));
-        strncpy(buyOrder.BrokerID, loginW->m_users.BrokerID, sizeof(buyOrder.BrokerID));
+        strncpy(buyOrder.BrokerID, loginW->brokerID, sizeof(buyOrder.BrokerID));
 		strncpy(buyOrder.InvestorID, loginW->userName,sizeof(buyOrder.InvestorID));						// 投资者号
 		strncpy(buyOrder.InstrumentID, cI->InstrumentID,sizeof(buyOrder.InstrumentID));						// 合约号
 		strncpy(buyOrder.ExchangeID, cI->ExchangeID,sizeof(buyOrder.ExchangeID));							// 交易所号

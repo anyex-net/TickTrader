@@ -157,6 +157,7 @@ void OrderManage::paintOrderTable(QPainter * p)
 	}
     p->drawText(QRect(wid_*wrats[7]/100 - vscl+2,linPix-LINPIX,wid_*(100-wrats[7])/100-4,LINPIX),afg, otitle[7]);
 	p->setFont(def);
+//    qInfo() << "ti.orderLst size: " << ti->orderLst.size();
 	bool jo = false; // 奇偶行显示 false奇 true偶
 	// 订单按时间排序
     QMap<QString, CThostFtdcOrderField *> oLst;// 该账户对应的订单信息 KEY:订单时间
@@ -210,7 +211,7 @@ void OrderManage::paintOrderTable(QPainter * p)
 	while (op.hasPrevious() && linPix<height())
 	{
         CThostFtdcOrderField * sOrder = oLst[op.previous().key()];
-		if(!sOrder) continue;
+        if(!sOrder || sOrder->VolumeTotalOriginal <= 0) continue;
 		if(igrows > 0)
 		{
 			igrows --;
