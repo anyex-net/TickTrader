@@ -44,6 +44,8 @@ loginWin::loginWin(QWidget *parent, Qt::WindowFlags f)
     connect(ui.btnLogin, SIGNAL(clicked()),this, SLOT(login_clicked()));
 
     connect(this, SIGNAL(showProcess(int,bool)), this, SLOT(onShowProcess(int,bool)));
+
+    qInfo() << "TickTraderMini start";
 }
 
 loginWin::~loginWin()

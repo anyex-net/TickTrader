@@ -78,6 +78,8 @@ void CTradeSpiImp::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin, CT
         loginFlags = true;
         memcpy(&loginW->loginRes, pRspUserLogin, sizeof(pRspUserLogin));
 
+        qInfo() << "OnRspUserLogin: " << "FrontID: " << pRspUserLogin->FrontID << "SessionID: " << pRspUserLogin->SessionID;
+
         int nRequestIDs = CreateNewRequestID();
         CThostFtdcQryInstrumentField reqInfo = {0};
         m_pTradeApi->ReqQryInstrument(&reqInfo, nRequestIDs);
@@ -130,7 +132,7 @@ void CTradeSpiImp::OnRspAuthenticate(CThostFtdcRspAuthenticateField *pRspAuthent
 
         int nRequestID1 = CreateNewRequestID();
         int ret1 = m_pTradeApi->ReqUserLogin(&login, nRequestID1);
-        qInfo() << "ReqUserLogin ret: " << ret1;
+        qInfo() << "CTradeSpiImp::ReqUserLogin ret: " << ret1;
     }
 }
 
@@ -151,7 +153,13 @@ void CTradeSpiImp::OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CTho
         return;
     if(pRspInfo && pRspInfo->ErrorID)
     {
-        qInfo() << "OnRspOrderInsert: " << pRspInfo->ErrorID << QString::fromLocal8Bit(pRspInfo->ErrorMsg);
+        qInfo() << "OnRspOrderInsert: \n" << pRspInfo->ErrorID << QString::fromLocal8Bit(pRspInfo->ErrorMsg) << "\n"
+                << "OrderRef: " << pInputOrder->OrderRef << "    OrderPriceType: " << pInputOrder->OrderPriceType << "\n"
+                << "Direction: " << pInputOrder->Direction << "    CombOffsetFlag: " << pInputOrder->CombOffsetFlag << "\n"
+                << "CombHedgeFlag: " << pInputOrder->CombHedgeFlag << "    LimitPrice: " << pInputOrder->LimitPrice << "\n"
+                << "VolumeTotalOriginal: " << pInputOrder->VolumeTotalOriginal << "    TimeCondition: " << pInputOrder->TimeCondition << "\n"
+                << "VolumeCondition: " << pInputOrder->VolumeCondition << "    ExchangeID: " << pInputOrder->ExchangeID << "\n"
+                << "InstrumentID: " << pInputOrder->InstrumentID << "\n";
         QString orderKey = QString("%1.%2.%3").arg(loginW->loginRes.FrontID).arg(loginW->loginRes.SessionID).arg(pInputOrder->OrderRef);
         g_tw->orderMessageEmit(QString::fromLocal8Bit(pRspInfo->ErrorMsg));
         g_tw->orderInsertRsp(orderKey);
@@ -162,8 +170,18 @@ void CTradeSpiImp::OnRtnOrder(CThostFtdcOrderField *pOrder)
 {
     if(pOrder)
     {
-        qInfo() << "OnRtnOrder: " << pOrder->OrderRef << QString::fromLocal8Bit(pOrder->StatusMsg) << pOrder->OrderStatus
-                << pOrder->OrderSubmitStatus;
+        qInfo() << "OnRtnOrder: \n"
+                << "OrderRef: " << pOrder->OrderRef << "    OrderPriceType: " << pOrder->OrderPriceType << "\n"
+                << "Direction: " << pOrder->Direction << "    CombOffsetFlag: " << pOrder->CombOffsetFlag << "\n"
+                << "CombHedgeFlag: " << pOrder->CombHedgeFlag << "    LimitPrice: " << pOrder->LimitPrice << "\n"
+                << "VolumeTotalOriginal: " << pOrder->VolumeTotalOriginal << "    TimeCondition: " << pOrder->TimeCondition << "\n"
+                << "VolumeCondition: " << pOrder->VolumeCondition << "    ExchangeID: " << pOrder->ExchangeID << "\n"
+                << "InstrumentID: " << pOrder->InstrumentID << "    OrderSysID: " << pOrder->OrderSysID << "\n"
+                << "OrderStatus: " << pOrder->OrderStatus << "    OrderSubmitStatus: " << pOrder->OrderSubmitStatus << "\n"
+                << "OrderType: " << pOrder->OrderType << "    VolumeTraded: " << pOrder->VolumeTraded << "\n"
+                << "VolumeTotal: " << pOrder->VolumeTotal << "    InsertDate: " << pOrder->InsertDate << "\n"
+                << "InsertTime: " << pOrder->InsertTime << "    FrontID: " << pOrder->FrontID << "\n"
+                << "SessionID: " << pOrder->SessionID << "    StatusMsg: " << QString::fromLocal8Bit(pOrder->StatusMsg) << "\n";
         g_tw->orderEmit(this, pOrder, false, true);
     }
 }
@@ -172,6 +190,13 @@ void CTradeSpiImp::OnRtnTrade(CThostFtdcTradeField *pTrade)
 {
     if(pTrade)
     {
+        qInfo() << "OnRtnTrade: \n"
+             << "OrderRef: " << pTrade->OrderRef << "    ExchangeID: " << pTrade->ExchangeID << "\n"
+             << "TradeID: " << pTrade->TradeID << "    Direction: " << pTrade->Direction << "\n"
+             << "OrderSysID: " << pTrade->OrderSysID << "    OffsetFlag: " << pTrade->OffsetFlag << "\n"
+             << "HedgeFlag: " << pTrade->HedgeFlag << "    Price: " << pTrade->Price << "\n"
+             << "Volume: " << pTrade->Volume << "    TradeDate: " << pTrade->TradeDate << "\n"
+             << "TradeTime: " << pTrade->TradeTime << "    InstrumentID: " << pTrade->InstrumentID << "\n";
         g_tw->tradeEmit(this, pTrade, false, true);
     }
 }
@@ -182,6 +207,12 @@ void CTradeSpiImp::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrder
         return;
     if(pRspInfo && pRspInfo->ErrorID)
     {
+        qInfo() << "OnRspOrderAction: \n"
+             << "OrderRef: " << pInputOrderAction->OrderRef << "    ExchangeID: " << pInputOrderAction->ExchangeID << "\n"
+             << "FrontID: " << pInputOrderAction->FrontID << "    SessionID: " << pInputOrderAction->SessionID << "\n"
+             << "OrderSysID: " << pInputOrderAction->OrderSysID << "    ActionFlag: " << pInputOrderAction->ActionFlag << "\n"
+             << "LimitPrice: " << pInputOrderAction->LimitPrice << "    VolumeChange: " << pInputOrderAction->VolumeChange << "\n"
+             << "InstrumentID: " << pInputOrderAction->InstrumentID << "\n";
         qInfo() << QString::fromLocal8Bit(pRspInfo->ErrorMsg);
         g_tw->orderMessageEmit(QString::fromLocal8Bit(pRspInfo->ErrorMsg));
     }
@@ -205,13 +236,24 @@ void CTradeSpiImp::OnRspQryDepthMarketData(CThostFtdcDepthMarketDataField *pDept
 
 void CTradeSpiImp::OnRspQryOrder(CThostFtdcOrderField *pOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-    qInfo() << "OnRspQryOrder: " << bIsLast << (pOrder == nullptr ? 1:0);
     if(pRspInfo && pRspInfo->ErrorID != 0)
         return;
-
+    if(pOrder){
+        qInfo() << "OnRspQryOrder: \n"
+                << "OrderRef: " << pOrder->OrderRef << "    OrderPriceType: " << pOrder->OrderPriceType << "\n"
+                << "Direction: " << pOrder->Direction << "    CombOffsetFlag: " << pOrder->CombOffsetFlag << "\n"
+                << "CombHedgeFlag: " << pOrder->CombHedgeFlag << "    LimitPrice: " << pOrder->LimitPrice << "\n"
+                << "VolumeTotalOriginal: " << pOrder->VolumeTotalOriginal << "    TimeCondition: " << pOrder->TimeCondition << "\n"
+                << "VolumeCondition: " << pOrder->VolumeCondition << "    ExchangeID: " << pOrder->ExchangeID << "\n"
+                << "InstrumentID: " << pOrder->InstrumentID << "    OrderSysID: " << pOrder->OrderSysID << "\n"
+                << "OrderStatus: " << pOrder->OrderStatus << "    OrderSubmitStatus: " << pOrder->OrderSubmitStatus << "\n"
+                << "OrderType: " << pOrder->OrderType << "    VolumeTraded: " << pOrder->VolumeTraded << "\n"
+                << "VolumeTotal: " << pOrder->VolumeTotal << "    InsertDate: " << pOrder->InsertDate << "\n"
+                << "InsertTime: " << pOrder->InsertTime << "    FrontID: " << pOrder->FrontID << "\n"
+                << "SessionID: " << pOrder->SessionID << "    StatusMsg: " << QString::fromLocal8Bit(pOrder->StatusMsg) << "\n";
+    }
     if(pOrder && !bIsLast)
     {
-        qInfo() << "OnRspQryOrder: " << pOrder->OrderRef << pOrder->InstrumentID << bIsLast << QString::fromLocal8Bit(pOrder->StatusMsg);
         g_tw->orderEmit(this, pOrder);
     }
 	if(bIsLast)
@@ -222,12 +264,19 @@ void CTradeSpiImp::OnRspQryOrder(CThostFtdcOrderField *pOrder, CThostFtdcRspInfo
 
 void CTradeSpiImp::OnRspQryTrade(CThostFtdcTradeField *pTrade, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-    qInfo() << "OnRspQryTrade: " << bIsLast;
     if(pRspInfo && pRspInfo->ErrorID != 0)
         return;
+    if(pTrade){
+        qInfo() << "OnRspQryTrade: \n"
+             << "OrderRef: " << pTrade->OrderRef << "    ExchangeID: " << pTrade->ExchangeID << "\n"
+             << "TradeID: " << pTrade->TradeID << "    Direction: " << pTrade->Direction << "\n"
+             << "OrderSysID: " << pTrade->OrderSysID << "    OffsetFlag: " << pTrade->OffsetFlag << "\n"
+             << "HedgeFlag: " << pTrade->HedgeFlag << "    Price: " << pTrade->Price << "\n"
+             << "Volume: " << pTrade->Volume << "    TradeDate: " << pTrade->TradeDate << "\n"
+             << "TradeTime: " << pTrade->TradeTime << "    InstrumentID: " << QString::fromLocal8Bit(pTrade->InstrumentID) << "\n";
+    }
     if(pTrade && !bIsLast)
     {
-        qInfo() << "OnRspQryTrade: " << pTrade->OrderRef << pTrade->InstrumentID << bIsLast;
         g_tw->tradeEmit(this, pTrade);
     }
 	if(bIsLast)
@@ -238,12 +287,22 @@ void CTradeSpiImp::OnRspQryTrade(CThostFtdcTradeField *pTrade, CThostFtdcRspInfo
 
 void CTradeSpiImp::OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pInvestorPosition, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
- //   qInfo() << "OnRspQryInvestorPosition: " << bIsLast;
     if(pInvestorPosition)
-        qInfo() << "OnRspQryInvestorPosition: " << pInvestorPosition->InstrumentID << pInvestorPosition->ExchangeID
-                << pInvestorPosition->PosiDirection << pInvestorPosition->YdPosition
-                << pInvestorPosition->Position << pInvestorPosition->LongFrozen
-                << pInvestorPosition->ShortFrozen << pInvestorPosition->PositionProfit;
+        qInfo() << "OnRspQryInvestorPosition: \n"
+                << "InstrumentID: " << pInvestorPosition->InstrumentID << "    ExchangeID: " << pInvestorPosition->ExchangeID << "\n"
+                << "PosiDirection: " << pInvestorPosition->PosiDirection << "    HedgeFlag: " << pInvestorPosition->HedgeFlag << "\n"
+                << "PositionDate: " << pInvestorPosition->PositionDate << "    YdPosition: " << pInvestorPosition->YdPosition << "\n"
+                << "Position: " << pInvestorPosition->Position << "    LongFrozen: " << pInvestorPosition->LongFrozen << "\n"
+                << "ShortFrozen: " << pInvestorPosition->ShortFrozen << "    OpenVolume: " << pInvestorPosition->OpenVolume << "\n"
+                << "CloseVolume: " << pInvestorPosition->CloseVolume << "    OpenAmount: " << pInvestorPosition->OpenAmount << "\n"
+                << "CloseAmount: " << pInvestorPosition->CloseAmount << "    PositionCost: " << pInvestorPosition->PositionCost << "\n"
+                << "PreMargin: " << pInvestorPosition->PreMargin << "    UseMargin: " << pInvestorPosition->UseMargin << "\n"
+                << "FrozenMargin: " << pInvestorPosition->FrozenMargin << "    FrozenCash: " << pInvestorPosition->FrozenCash << "\n"
+                << "FrozenCommission: " << pInvestorPosition->FrozenCommission << "    Commission: " << pInvestorPosition->Commission << "\n"
+                << "CloseProfit: " << pInvestorPosition->CloseProfit << "    PositionProfit: " << pInvestorPosition->PositionProfit << "\n"
+                << "PreSettlementPrice: " << pInvestorPosition->PreSettlementPrice << "    SettlementPrice: " << pInvestorPosition->SettlementPrice << "\n"
+                << "CloseProfitByDate: " << pInvestorPosition->CloseProfitByDate << "    CloseProfitByTrade: " << pInvestorPosition->CloseProfitByTrade << "\n"
+                << "TodayPosition: " << pInvestorPosition->TodayPosition << "    InstrumentID: " << pInvestorPosition->InstrumentID << "\n";
 
     if(pInvestorPosition && !bIsLast)
     {
@@ -257,12 +316,14 @@ void CTradeSpiImp::OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pIn
 
 void CTradeSpiImp::OnRspQryTradingAccount(CThostFtdcTradingAccountField *pTradingAccount, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-    qInfo() << "OnRspQryTradingAccount: " << bIsLast;
     if(pRspInfo && pRspInfo->ErrorID != 0)
         return;
-    qInfo() << "OnRspQryTradingAccount: " << pTradingAccount->Available << bIsLast;
     if(pTradingAccount)
     {
+        qInfo() << "OnRspQryTradingAccount: \n"
+                << "CurrMargin: " << pTradingAccount->CurrMargin << "    Commission: " << pTradingAccount->Commission << "\n"
+                << "CloseProfit: " << pTradingAccount->CloseProfit << "    PositionProfit: " << pTradingAccount->PositionProfit << "\n"
+                << "Available: " << pTradingAccount->Available << "    WithdrawQuota: " << pTradingAccount->WithdrawQuota << "\n";
         g_tw->fundEmit(this, pTradingAccount);
     }
     if(!loginW->isHidden())
@@ -274,7 +335,7 @@ void CTradeSpiImp::OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, CT
     if(pRspInfo && pRspInfo->ErrorID!=0){
         return;
     }
-    qInfo() << "pInstrument: " << pInstrument->InstrumentName << bIsLast;
+    qInfo() << "OnRspQryInstrument: " << QString::fromLocal8Bit(pInstrument->InstrumentName) << bIsLast;
     if(pInstrument)
     {
         CThostFtdcInstrumentField *pIn = new CThostFtdcInstrumentField;
@@ -314,7 +375,6 @@ void CTradeSpiImp::OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, CT
             int nRequestIDs = CreateNewRequestID();
             CThostFtdcQryOrderField reqInfo = {0};
             int ret = m_pTradeApi->ReqQryOrder(&reqInfo, nRequestIDs);
-            qInfo() << "ReqQryOrder: " << ret;
             if(ret == -2 || ret == -3)
                 QThread::msleep(100);
             else

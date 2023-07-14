@@ -31,7 +31,8 @@ SOURCES += \
     tradespiimp.cpp \
     mdspiimp.cpp \
     widgetordermanager.cpp \
-    widgettrademanager.cpp
+    widgettrademanager.cpp \
+    tools/log.cpp
 
 HEADERS += \
     InstrManage.h \
@@ -55,7 +56,8 @@ HEADERS += \
     mdspiimp.h \
     appapi.h \
     widgetordermanager.h \
-    widgettrademanager.h
+    widgettrademanager.h \
+    tools/log.h
 
 FORMS += \
     changePassword.ui \

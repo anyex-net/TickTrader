@@ -277,6 +277,11 @@ TradeWidget::TradeWidget(QWidget *parent, Qt::WindowFlags flags)
 
 void TradeWidget::closeEvent (QCloseEvent * event)
 {
+    QFile file("./logIndex.txt");
+    if(file.open(QIODevice::ReadWrite | QIODevice::Truncate)){
+        file.write(QString(logInstance.fileNameIndex()).toLocal8Bit());
+        file.close();
+    }
     Notice info(Notice::NOTICE_TYPE_WARNING, QString::fromLocal8Bit("退出TickTrader？"), false, QString::fromLocal8Bit("提示"), NULL, 0);
     info.exec();
     if(info.pushButton) {
@@ -288,13 +293,11 @@ void TradeWidget::closeEvent (QCloseEvent * event)
 
 void TradeWidget::doCancelOrder(CThostFtdcInputOrderActionField *pOrderCancelRsp)
 {
-    qInfo() << "111" << pOrderCancelRsp->OrderRef;
     for(int i=0;i<o2upLst.length();i++)
     {
         NEWORDERINF & iti = o2upLst[i];
         if(::strcmp(pOrderCancelRsp->OrderRef, iti.OrderRef) == 0)
         {
-            qInfo() << "1110" << iti.OrderRef;
             int nRequestID = CreateNewRequestID();
             CThostFtdcInputOrderField pInputOrder;
             ::memset(&pInputOrder,0,sizeof(CThostFtdcInputOrderField));
@@ -751,7 +754,6 @@ void TradeWidget::checkOrderStatus(CThostFtdcDepthMarketDataField * cQuot)
             {
                 pInputOrder.LimitPrice = cQuot->UpperLimitPrice;	/* 涨停价格 */
             }
-            qInfo() << "222";
             pInputOrder.OrderPriceType = iti->OrderPriceType;
             pInputOrder.TimeCondition = THOST_FTDC_TC_GFD;
             pInputOrder.VolumeCondition = THOST_FTDC_VC_AV;
@@ -842,7 +844,6 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
             int nRequestIDs = CreateNewRequestID();
             CThostFtdcQryTradeField reqInfo = {0};
             int ret = pTraderApi->ReqQryTrade(&reqInfo, nRequestIDs);
-            qInfo() << "ReqQryTrade: " << ret;
             if(ret == -2 || ret == -3)
                 QThread::msleep(100);
             else
@@ -1023,7 +1024,6 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
 
 void TradeWidget::updatePostion(CThostFtdcOrderField *pOrder)
 {
-    qInfo() << "m_neddReqPos: " << m_neddReqPos.size();
     if(m_neddReqPos.size() < 1)
         m_neddReqPos.append(1);
 
@@ -1178,7 +1178,6 @@ void TradeWidget::addTrade(CTradeSpiImp * t, CThostFtdcTradeField  * trade, bool
             int nRequestIDs = CreateNewRequestID();
             CThostFtdcQryInvestorPositionField reqInfo = {0};
             int ret = pTraderApi->ReqQryInvestorPosition(&reqInfo, nRequestIDs);
-            qInfo() << "ReqQryInvestorPosition: " << ret;
             if(ret == -2 || ret == -3)
                 QThread::msleep(100);
             else
@@ -1356,7 +1355,6 @@ void TradeWidget::onTimerReqPos()
         int nRequestIDs = CreateNewRequestID();
         CThostFtdcQryInvestorPositionField reqInfo = {0};
         int ret = pTraderApi->ReqQryInvestorPosition(&reqInfo, nRequestIDs);
-        qInfo() << "ReqQryInvestorPosition: " << ret;
         if(ret == -2 || ret == -3)
             QThread::msleep(100);
         else{
@@ -1421,7 +1419,6 @@ void TradeWidget::addPosi(CTradeSpiImp * t, CThostFtdcInvestorPositionField * po
             int nRequestIDs = CreateNewRequestID();
             CThostFtdcQryTradingAccountField reqInfo = {0};
             int ret = pTraderApi->ReqQryTradingAccount(&reqInfo, nRequestIDs);
-            qInfo() << "ReqQryTradingAccount: " << ret;
             if(ret == -2 || ret == -3)
                 QThread::msleep(100);
             else
@@ -1778,6 +1775,12 @@ void TradeWidget::initTradeWin()
 
 TradeWidget::~TradeWidget()
 {
+    QFile file("./logIndex.txt");
+    if(file.open(QIODevice::ReadWrite | QIODevice::Truncate)){
+        file.write(QString(logInstance.fileNameIndex()).toLocal8Bit());
+        file.close();
+    }
+
     // 切断API推送
     disconnect(this, SIGNAL(getOrderPush(CTradeSpiImp *, CThostFtdcOrderField *, bool, bool)),this, SLOT(addOrder(CTradeSpiImp *, CThostFtdcOrderField *, bool, bool)));
     disconnect(this, SIGNAL(getPosiPush(CTradeSpiImp *, CThostFtdcInvestorPositionField *)),this, SLOT(addPosi(CTradeSpiImp *, CThostFtdcInvestorPositionField *)));

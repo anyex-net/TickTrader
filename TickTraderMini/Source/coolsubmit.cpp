@@ -61,7 +61,6 @@ CoolSubmit::CoolSubmit(QString Instr, CThostFtdcDepthMarketDataField * t, TradeW
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
     CThostFtdcInstrumentField * instrment = tw->insMap[Instr];
-    qInfo() << Instr;
     selectInstr = new InstrManage(instrment, this);
     connect(selectInstr, SIGNAL(changed()), this, SLOT(initByInstr()));
     connect(tw, SIGNAL(floating()), this, SLOT(update()));
@@ -365,7 +364,6 @@ void CoolSubmit::mouseReleaseEvent(QMouseEvent * event)
         else
             numL->setText(QString::number(0));
     }
-//    qInfo() << moveWPixs << moveHPixs << rcount2.topLeft().x() << rcount2.topLeft().y() << rcount2.bottomRight().x() << rcount2.bottomRight().y();
     if(rcount1.contains(QPoint(moveWPixs,moveHPixs)))
     {
         numL->setText("1");
@@ -432,7 +430,6 @@ void CoolSubmit::mouseReleaseEvent(QMouseEvent * event)
 //		wheelSteps = maxWheelSteps-(yH-linPix)*abs(maxWheelSteps-minWheelSteps)/(height()-1*linPix);
     }
     setCursor(QCursor(Qt::ArrowCursor));
-    qInfo() << " tradeStatus " << tradeStatus << "mouseStatus " << mouseStatus;
     switch(tradeStatus)
     {
     case LIMIT:
@@ -531,7 +528,6 @@ void CoolSubmit::mouseDoubleClickEvent(QMouseEvent * event)
     if(curPriceR.contains(event->pos()) || BidPriceR.contains(event->pos())
              || AskPriceR.contains(event->pos()))
     {
-        qInfo() << "double click";
         continueFlag = 0;
         initByInstr();
     }
@@ -605,20 +601,16 @@ void CoolSubmit::updateOrder(char bos, double price, double price2)
 // É¾³ý¶©µ¥
 void CoolSubmit::dropOrder(char bos, double price)
 {
-    qInfo() << "chedan" << bos << price;
     CThostFtdcInstrumentField * ci = selectInstr->curInstr;
     if(!ci) return;
     TradeInfo & ti = tradeInfoLst[currentAccout];
     QMapIterator<QString, CThostFtdcOrderField *> i(ti.orderLst);
     while (i.hasNext()) {
         CThostFtdcOrderField * sOrder = ti.orderLst[i.next().key()];
-        qInfo() << sOrder->OrderStatus << sOrder->LimitPrice;
         if(sOrder && QString::fromLocal8Bit(sOrder->InstrumentID) == ci->InstrumentID && sOrder->LimitPrice-price<0.000005  && sOrder->LimitPrice-price>-0.000005 && sOrder->Direction == bos)
         {
             if(sOrder->OrderStatus == THOST_FTDC_OST_NoTradeQueueing || sOrder->OrderStatus == THOST_FTDC_OST_PartTradedQueueing) // ³·Ïú¶©µ¥
             {
-                qInfo() << "enter";
-
                 int nRequestID = CreateNewRequestID();
                 CThostFtdcInputOrderActionField pCancelReq;
                 ::memset(&pCancelReq,0,sizeof(CThostFtdcInputOrderActionField));
@@ -634,8 +626,6 @@ void CoolSubmit::dropOrder(char bos, double price)
                 memcpy( pCancelReq.OrderSysID, sOrder->OrderSysID, sizeof( pCancelReq.OrderSysID ) );
 
                 pCancelReq.ActionFlag = THOST_FTDC_AF_Delete;
-
-                qInfo() << "action333: " << pCancelReq.OrderRef;
 
                 ti.api->ReqOrderAction(&pCancelReq, nRequestID);
             }
@@ -946,8 +936,8 @@ void CoolSubmit::getOrderOffsetFlag1(CThostFtdcInputOrderField *pInputOrder, TTh
     TodaySellQty = iterPosi.value().TodayQty;
     TodaySellQtyFrozen = iterPosi.value().TodayQtyFrozen;
 
-    qInfo() << "duo: " << BuyQty << BuyQtyFrozen << TodayBuyQty << TodayBuyQtyFrozen
-            << "kong: " << SellQty << SellQtyFrozen << TodaySellQty << TodaySellQtyFrozen;
+    qInfo() << "getOrderOffsetFlag1: " << "BuyQty: " << BuyQty << "BuyQtyFrozen: " << BuyQtyFrozen << "TodayBuyQty: " << TodayBuyQty  << "TodayBuyQtyFrozen: " << TodayBuyQtyFrozen
+            << "SellQty: " << SellQty << "SellQtyFrozen: " << SellQtyFrozen << "TodaySellQty: " << TodaySellQty << "TodaySellQtyFrozen: "<< TodaySellQtyFrozen;
 
     if(pInputOrder->Direction==THOST_FTDC_D_Buy){
         // Âò
@@ -1035,7 +1025,7 @@ void CoolSubmit::getOrderOffsetFlag1(CThostFtdcInputOrderField *pInputOrder, TTh
         if(pInputOrder->VolumeTotalOriginal>(CloseTodayQty+CloseQty))
             OpenQty=pInputOrder->VolumeTotalOriginal-(CloseTodayQty+CloseQty);
     }
-    qInfo() << OpenQty << CloseQty << CloseTodayQty;
+    qInfo() << "OpenQty: " << OpenQty << "CloseQty: " << CloseQty << "CloseTodayQty: " << CloseTodayQty;
 }
 
 // ²åÈë¶©µ¥
@@ -1177,6 +1167,13 @@ void CoolSubmit::OrderInsert(CThostFtdcInputOrderField *pInputOrder, uchar OCFla
             iterPosi.value().QtyFrozen+=stOrder.VolumeTotalOriginal;
         }
     }
+    qInfo() << "ReqOrderInsert: \n"
+            << "OrderRef: " << pInputOrder->OrderRef << "    OrderPriceType: " << pInputOrder->OrderPriceType << "\n"
+            << "Direction: " << pInputOrder->Direction << "    CombOffsetFlag: " << pInputOrder->CombOffsetFlag << "\n"
+            << "CombHedgeFlag: " << pInputOrder->CombHedgeFlag << "    LimitPrice: " << pInputOrder->LimitPrice << "\n"
+            << "VolumeTotalOriginal: " << pInputOrder->VolumeTotalOriginal << "    TimeCondition: " << pInputOrder->TimeCondition << "\n"
+            << "VolumeCondition: " << pInputOrder->VolumeCondition << "    ExchangeID: " << pInputOrder->ExchangeID << "\n"
+            << "InstrumentID: " << pInputOrder->InstrumentID << "\n";
 
     int ret=tf.api->ReqOrderInsert(pInputOrder, nRequestID);
     if(ret<0){
@@ -1854,7 +1851,6 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
                 double steps = ( - iti->LimitPrice)/minMove;
                 int oLin  = 0;
                 double dis = steps-(int)steps;
-         //       qInfo() << "steps: " << steps << dis;
                 if(dis > 0)
                 {
                     if(dis < 0.5)
@@ -1877,7 +1873,6 @@ void CoolSubmit::paintEvent(QPaintEvent * event)
                         oLin = (int)steps -1 + 1 +(wheelSteps+linNum/2);
                     }
                 }
-         //       qInfo() << "steps: " << steps << dis << oLin;
                 if(oLin < 1)
                     continue;
                 int qty = iti->VolumeTotalOriginal;

@@ -8,6 +8,7 @@
 #include <QDesktopServices>	
 #include <QDesktopWidget>
 #include "notice.h"
+#include "tools/log.h"
 
 TradeWidget * g_tw = nullptr;
 // 设置界面
@@ -38,6 +39,22 @@ int main(int argc, char *argv[])
 	QApplication::addLibraryPath("./plugins");
 
     QApplication a(argc, argv);
+
+    int iLogIndex = 0;
+    QFile file("./logIndex.txt");
+    if(file.open(QIODevice::ReadWrite)){
+        QByteArray byte = file.readAll();
+        if(!byte.isEmpty())
+            iLogIndex = byte.toInt();
+        else
+            file.write(QString("1").toLocal8Bit());
+        file.close();
+    }
+#ifndef QT_DEBUG
+    QStringList list;
+    list << "QSslSocket";
+    Log::instance().start(iLogIndex, list);
+#endif
 
 	QFont font;
 //	font.setFamily(QString::fromLocal8Bit("微软雅黑"));

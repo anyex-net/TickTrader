@@ -177,7 +177,7 @@ void PosiManage::paintPosiTable(QPainter * p)
             CThostFtdcInvestorPositionField * cpi = pp->posi.at(index);
             if(cpi->Position == 0)
                 continue;
-//            qInfo() << cpi->InstrumentID << cpi->PosiDirection << cpi->Position << cpi->PositionCost << cpi->PositionProfit;
+
             linPix += LINPIX;
             CThostFtdcInstrumentField * sbInstr = tw->insMap[QString::fromLocal8Bit(cpi->InstrumentID)];
             if(!sbInstr) continue;

@@ -15,6 +15,7 @@ extern "C"{
 #include "tradespiimp.h"
 #include "mdspiimp.h"
 #include <QDebug>
+#include "tools/log.h"
 
 enum TRADE_SIGNAL{LOGIN,GOT_M1,GOT_M5,GOT_M15,GOT_D1,LOGOUT};
 

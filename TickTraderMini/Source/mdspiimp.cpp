@@ -33,7 +33,7 @@ void CMdSpiImp::OnFrontConnected()
 
         quint32 nRequestID = CreateNewRequestID();
         int ret = m_pQuotApi->ReqUserLogin(&login, nRequestID);
-        qInfo() << "ReqUserLogin ret: " << ret;
+        qInfo() << "CMdSpiImp::ReqUserLogin ret: " << ret;
     }
 }
 
