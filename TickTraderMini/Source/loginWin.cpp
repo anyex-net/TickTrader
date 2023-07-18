@@ -117,8 +117,8 @@ void loginWin::login_clicked()
             return;
         }
         pTraderApi->RegisterSpi(pTraderSpi);
-        pTraderApi->SubscribePrivateTopic(THOST_TERT_QUICK);
-        pTraderApi->SubscribePublicTopic(THOST_TERT_QUICK);
+        pTraderApi->SubscribePrivateTopic(THOST_TERT_RESUME);
+        pTraderApi->SubscribePublicTopic(THOST_TERT_RESUME);
         pTraderApi->RegisterFront((char*)m_listAddr.at(serverAddrIndex).tradeServ.toStdString().c_str());
         pTraderApi->Init( );
     }

@@ -447,12 +447,14 @@ void CoolSubmit::mouseReleaseEvent(QMouseEvent * event)
             break;
         case DROPSELL:
             {
+                qInfo() << "dropOrder : THOST_FTDC_D_Sell";
                 dropOrder(THOST_FTDC_D_Sell, price);
                 mouseStatus = NORMAL;
             }
             break;
         case DROPBUY:
             {
+                qInfo() << "dropOrder : THOST_FTDC_D_Buy";
                 dropOrder(THOST_FTDC_D_Buy, price);
                 mouseStatus = NORMAL;
             }
@@ -461,6 +463,7 @@ void CoolSubmit::mouseReleaseEvent(QMouseEvent * event)
             {
                 if(price != price2)
                 {
+                    qInfo() << "updateOrder : THOST_FTDC_D_Sell";
                     updateOrder(THOST_FTDC_D_Sell, price, price2);
                 }
                 mouseStatus = NORMAL;
@@ -470,6 +473,7 @@ void CoolSubmit::mouseReleaseEvent(QMouseEvent * event)
             {
                 if(price != price2)
                 {
+                    qInfo() << "updateOrder : THOST_FTDC_D_Buy";
                     updateOrder(THOST_FTDC_D_Buy, price, price2);
                 }
                 mouseStatus = NORMAL;

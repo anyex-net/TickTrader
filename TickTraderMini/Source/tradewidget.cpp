@@ -317,7 +317,11 @@ void TradeWidget::doCancelOrder(CThostFtdcInputOrderActionField *pOrderCancelRsp
             pInputOrder.LimitPrice = iti.Price;	/* 价格 */
             pInputOrder.VolumeTotalOriginal = iti.Qty;	/* 数量 */
             pInputOrder.ContingentCondition = THOST_FTDC_CC_Immediately;	/* 限价单模式 */
-            tradeInfoLst[iti.tif].api->ReqOrderInsert(&pInputOrder, nRequestID); // 录入订单
+  //          tradeInfoLst[iti.tif].api->ReqOrderInsert(&pInputOrder, nRequestID); // 录入订单
+            if(CSubmit != NULL){
+                qInfo() << "cancle order over, new insert order";
+                CSubmit->OrderInsert(&pInputOrder, pInputOrder.CombOffsetFlag[0], pInputOrder.VolumeTotalOriginal, nRequestID);
+            }
             o2upLst.removeAt(i);
             break;
         }
@@ -983,7 +987,7 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
                     }
                 }else{
                     // 更新订单（只处理撤单，成交处理在成交回报中）
-                    if(iterOrder.value()->OrderStatus==THOST_FTDC_OST_Canceled || iterOrder.value()->OrderStatus==THOST_FTDC_OST_AllTraded){
+                    if(/*iterOrder.value()->OrderStatus==THOST_FTDC_OST_Canceled || */iterOrder.value()->OrderStatus==THOST_FTDC_OST_AllTraded){
                         return; // 已处于最终状态的订单不再做任何处理
                     }
 
@@ -1015,6 +1019,15 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
                             }
                         }
                     }
+                }
+                QMap<QString, stSelfPosi>::iterator iterPosiLog;
+                // 多仓
+                if((iterPosiLog = ti.longPosis.find(pOrder.InstrumentID)) != ti.longPosis.end()){
+                    qInfo() << "RtnOrder-Pos-Update-Buy: " << iterPosiLog.value().Qty << iterPosiLog.value().QtyFrozen << iterPosiLog.value().TodayQty << iterPosiLog.value().TodayQtyFrozen;
+                }
+                // 空仓
+                if ((iterPosiLog = ti.shortPosis.find(pOrder.InstrumentID)) != ti.shortPosis.end()) {
+                    qInfo() << "RtnOrder-Pos-Update-Sell: " << iterPosiLog.value().Qty << iterPosiLog.value().QtyFrozen << iterPosiLog.value().TodayQty << iterPosiLog.value().TodayQtyFrozen;
                 }
                 break;
             }
@@ -1304,6 +1317,15 @@ void TradeWidget::addTrade(CTradeSpiImp * t, CThostFtdcTradeField  * trade, bool
                                 pTrade.Volume*pTrade.Price*iterInstrument.value()->VolumeMultiple * iterInstrument.value()->ShortMarginRatio;
                         }
                     }
+                }
+                QMap<QString, stSelfPosi>::iterator iterPosiLog;
+                // 多仓
+                if((iterPosiLog = ti.longPosis.find(pTrade.InstrumentID)) != ti.longPosis.end()){
+                    qInfo() << "RtnTrade-Pos-Update-Buy: " << iterPosiLog.value().Qty << iterPosiLog.value().QtyFrozen << iterPosiLog.value().TodayQty << iterPosiLog.value().TodayQtyFrozen;
+                }
+                // 空仓
+                if ((iterPosiLog = ti.shortPosis.find(pTrade.InstrumentID)) != ti.shortPosis.end()) {
+                    qInfo() << "RtnTrade-Pos-Update-Sell: " << iterPosiLog.value().Qty << iterPosiLog.value().QtyFrozen << iterPosiLog.value().TodayQty << iterPosiLog.value().TodayQtyFrozen;
                 }
                 break;
             }
