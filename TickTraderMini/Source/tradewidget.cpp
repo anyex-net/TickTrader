@@ -473,12 +473,12 @@ void TradeWidget::orderEmit(CTradeSpiImp * t, CThostFtdcOrderField * pOrder, boo
     if(pOrder){
         CThostFtdcOrderField * order = new CThostFtdcOrderField;
         ::memcpy(order, pOrder, sizeof(CThostFtdcOrderField));
-        if(order->OrderStatus==THOST_FTDC_OST_Canceled)
-        {
-            CThostFtdcInputOrderActionField oRsp;
-            strncpy(oRsp.OrderRef, order->OrderRef, sizeof(oRsp.OrderRef));
-            checkCancelOrder(&oRsp);
-        }
+//        if(order->OrderStatus==THOST_FTDC_OST_Canceled)
+//        {
+//            CThostFtdcInputOrderActionField oRsp;
+//            strncpy(oRsp.OrderRef, order->OrderRef, sizeof(oRsp.OrderRef));
+//            checkCancelOrder(&oRsp);
+//        }
         emit getOrderPush(t, order, bLast, push);
     }
     else
@@ -1028,6 +1028,13 @@ void TradeWidget::addOrder(CTradeSpiImp * t, CThostFtdcOrderField * order, bool 
                 // ¿Õ²Ö
                 if ((iterPosiLog = ti.shortPosis.find(pOrder.InstrumentID)) != ti.shortPosis.end()) {
                     qInfo() << "RtnOrder-Pos-Update-Sell: " << iterPosiLog.value().Qty << iterPosiLog.value().QtyFrozen << iterPosiLog.value().TodayQty << iterPosiLog.value().TodayQtyFrozen;
+                }
+
+                if(order->OrderStatus==THOST_FTDC_OST_Canceled)
+                {
+                    CThostFtdcInputOrderActionField oRsp;
+                    strncpy(oRsp.OrderRef, order->OrderRef, sizeof(oRsp.OrderRef));
+                    doCancelOrder(&oRsp);
                 }
                 break;
             }

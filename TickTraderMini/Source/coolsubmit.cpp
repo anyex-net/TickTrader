@@ -1180,6 +1180,7 @@ void CoolSubmit::OrderInsert(CThostFtdcInputOrderField *pInputOrder, uchar OCFla
             << "InstrumentID: " << pInputOrder->InstrumentID << "\n";
 
     int ret=tf.api->ReqOrderInsert(pInputOrder, nRequestID);
+    qInfo() << "ReqOrderInsert ret : " << ret;
     if(ret<0){
         tf.orderLst[orderKey]->OrderStatus=THOST_FTDC_OST_Canceled;
         strcpy(tf.orderLst[orderKey]->StatusMsg,"交易通道未就绪");
